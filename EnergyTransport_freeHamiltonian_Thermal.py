@@ -11,7 +11,7 @@ from scipy import linalg as LA
 
 class chain():
 	"""
-	Create a chain with the given parameters
+	Create a changingain with the given parameters
 	"""
 
 	def __init__(self, omegax, N, M, omega_x, omega_z, equal_distances):

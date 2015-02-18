@@ -32,11 +32,10 @@ class equilibrium_positions(object):
     
     @classmethod
     def get_positions(cls, number_ions, trap_frequency, p):
-        #Wrong comment:
+        
         '''
-        takes the trap frequency in Hz and returns the axial positions of an ion chain for that frequency
+        takes the trap frequency in Rad/Sec and returns the axial positions of an ion chain for that frequency
         '''
-        #trap_frequency must be angular frequency according to DJames 1997 paper.
 
         w = trap_frequency
         length_scale = (p.coulomb_coeff / (w**2 * p.mass))**(1./3)

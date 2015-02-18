@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+from __future__ import division, absolute_import, print_function, unicode_literals
 import parameters as p
 from ion_trap import IonTrap
 from ions import Ion, Chain
@@ -20,8 +21,8 @@ class ARamseyExperiment(Experiment):
 
         #super(ARamseyExperiment, self).__init__()
 
-    
-
+    def run(self):
+        
 
 if __name__ == '__main__':
 
@@ -35,19 +36,19 @@ if __name__ == '__main__':
         dummy_trap.load( chain )
 
         #Setup lasers:
-        lasers                  =  {laser1                  =  Laser(ion_number = 1, freq = -1, intensity = .1)
-                                    laser2                  =  Laser(ion_number = 5, freq = 1, intensity = .1)
+        lasers                  =  {'laser1'                :  Laser(ion_number = 1, freq = -1, intensity = .1)
+                                    'laser5'                :  Laser(ion_number = 5, freq = 1, intensity = .1)
                                     }
 
-        pulse_sequence          =  { (laser1, laser1_time), 
+        pulse_sequence          =  [ (laser1, laser1_time), 
                                      (laser2, laser2_time),
                                      (laser1, laser1_time),
                                      (laser2, laser2_time),
-                                    }
+                                    ]
 
-        observables             =  { Observable('ion1', 'electronic_state')
+        observables             =  [ Observable('ion1', 'electronic_state')
 
-                                    }
+                                    ]
 
 
 
@@ -65,7 +66,7 @@ if __name__ == '__main__':
 
 
         #Initialize the chian quantum states:
-
+        experiment.initialize()
 
         #Run the experiment and collect data:
         experiment.run()
