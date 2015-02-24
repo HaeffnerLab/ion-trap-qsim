@@ -1,28 +1,5 @@
 #!/usr/env/ python
 
-a_func        = lambda i:   tensor( qeye(2), 
-                               tensor( [ destroy(M) if j == i else qeye(M) for j in range(N) ])
-                             )
-a             =  [a_func(j) for j in range(N)]
-sigma_plus_func  =  lambda i:  tensor( create(2),
-                                   tensor( [ qeye(M) for j in range(N)] ) 
-                                )
-sigma_plus       =  [ sigma_plus_func(j) for j in range(N) ]
-
-sigma_minus_func  =  lambda i:  tensor( destroy(2),
-                                   tensor( [ qeye(M) for j in range(N)] ) 
-                                )
-sigma_minus      =  [sigma_minus_func(j) for j in range(N)]
-
-#n        =  lambda i: a(i).dag() * a(i) # local phonon number, N>i>=0
-excited_state_pop_func  =  lambda i: tensor( create(2) * destroy(2),
-                                         tensor([ qeye(M) for j in range(N)] )                                       
-                                       )
-excited_state_pop       =  [excited_state_pop_func(j) for j in range(N)]
-
-identity_op =  tensor(qeye(2),
-                       tensor( [qeye(M) for j in range(N)] )
-                      ) 
 
 
 
@@ -45,7 +22,7 @@ def do_lattice_with_gen():
     exp_final  =  np.zeros(len(times_free))
     ion_num    =  0
     rel_detuning =  DELTA
-    H0        =  get_H0(omegax, rel_detuning) 
+    H0        =  get_free_hamiltonian() 
     #pulse pair 1#
     U1        =  propagator_Trotter(H0 + get_H(0, 0), times_pulse, 'final')[-1] 
     #pulse pair 2#

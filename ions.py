@@ -200,6 +200,7 @@ class Chain:
                         for i in range(len(args)):
                         	self.Ions[i].initialize_ion_motional_state( self.ion_motional_hilbert_space_dim, args[i] )
 
+
         @property
         def get_motional_state( self ):
             """Return the 'motional quantum state' of the ion chain as one state (could be pure or mixed):
@@ -210,7 +211,7 @@ class Chain:
 
         @property
         def initial_state( self):
-            """Get ion chain quantum state, starting with electronic states of all ions that are in coherent interaction with lasers.
+            """Get ion chain quantum state, starting with electronic states of all ions that are in coherent interaction with continuous/pulsed lasers.
 
             """
             if self.chain_electronic_states_initialized:
