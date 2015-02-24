@@ -71,7 +71,15 @@ class Ion:
                         		func(self, hilbert_space_dim, state)
 
                 	elif self.state_type == 'density_operator':
-                    		print("To be coded!")
+
+                            if type(state) != qutip.qobj.Qobj: 
+                                raise Statetypeerror( self.ion_number, self.state_type )
+                            else:
+
+                                if hilbert_space_dim <= state.shape[0] - 1:
+                                    raise Dimensionerror( "Ion number {}\n".format(self.ion_number) )
+                                else:
+                                    func(self, hilbert_space_dim, state)
 
         	return wrapper
 
@@ -81,19 +89,31 @@ class Ion:
                 self.motional_state_is_initialized = True
                 self.ion_motional_state     = basis( motional_hilbert_space_dim, ion_motional_state )
 
+
+        @initialize_ion_state
+        def initialize_ion_motional_density_operator( self, ion_motional_hilbert_space_dim, density_operator ):
+                self.motional_state_is_initialized = True
+                self.ion_motional_state  =  density_operator
+
+
         @property
         def get_motional_state( self ):
         	try:
                 	return self.ion_motional_state
-        	except AttributeError as e:
+        	except AttributeErroer as e:
                 	print(e, "\nNo motional state is assinged to ion number {}".format(self.ion_number) )
+
 
         @initialize_ion_state
         def initialize_ion_electronic_state(self, electronic_hilbert_space_dim, ion_electronic_state_num):
 
                 self.electronic_state_is_initialized = True
                 self.ion_electronic_state   = basis( electronic_hilbert_space_dim, ion_electronic_state_num )
-
+                    
+        @initialize_ion_state
+        def initialize_ion_electronic_density_operator(self, electronic_hilbert_space_dim, density_operator):
+                self.electronic_state_is_initialized = True
+                self.ion_electronic_state   = density_operator
 
         def set_ion_electronic_state_number(self, state):
 
@@ -140,7 +160,7 @@ class Chain:
                 self.ion_electronic_hilbert_space_dim  =  ion_electronic_hilbert_space_dim
                 self.Ions                              =  [Ion(i, self.ion_motional_hilbert_space_dim, self.ion_electronic_hilbert_space_dim, state_type) for i in range(N)]
                 self.state                             =  None
-
+                self.state_type                        =  state_type
 
         
         def initialize_chain_electronic_states( self, **kwargs): 
@@ -156,13 +176,16 @@ class Chain:
                 for ion_num in ions_interacting_with_laser:
                         self.chain_electronic_states_initialized = True
                         try:
-                        	self.Ions[ion_num].initialize_ion_electronic_state( self.ion_electronic_hilbert_space_dim, self.Ions[ion_num].ion_electronic_state_number )
+                            if self.state_type == 'pure':
+                                self.Ions[ion_num].initialize_ion_electronic_state( self.ion_electronic_hilbert_space_dim, self.Ions[ion_num].ion_electronic_state_number )
+                            elif self.state_type == 'density_operator':
+                                density_operator = basis( self.ion_electronic_hilbert_space_dim, self.Ions[ion_num].ion_electronic_state_number ) * basis( self.ion_electronic_hilbert_space_dim, self.Ions[ion_num].ion_electronic_state_number ).dag()
+                                self.Ions[ion_num].initialize_ion_electronic_density_operator( self.ion_electronic_hilbert_space_dim, density_operator )
                                 #else:
                                  #       print("Ion numbering starts at 0 and ends at number of ions - 1.")
                         except ValueError as e:
                                 print("Error: Ions name formatting must be as 'ion10' ", e)
 
-        
 
         def set_pure_electronic_state_numbers( self, args ):
                 ''' Set the initial electronic state of ions given in input,
@@ -177,6 +200,7 @@ class Chain:
                 else:
                         for i in range(len(args)):
                         	self.Ions[i].set_ion_electronic_state_number( args[i] )
+
 
         @property
         def get_electronic_state( self ):
@@ -199,6 +223,22 @@ class Chain:
                 else:
                         for i in range(len(args)):
                         	self.Ions[i].initialize_ion_motional_state( self.ion_motional_hilbert_space_dim, args[i] )
+
+        def set_thermal_motional_state( self, args): 
+                ''' Initialize the initial motional state of ions given in input,
+                Example for input format:  args = (1.5, 1.0, ..., 2.4)
+                for a chain of N ions. Where each float number is the thermal state nbar of the nth ion.  
+
+                '''
+
+                if len(args) != self.num_of_ions:
+                        print("Number of arguments must be equal to the number of ions in the chain. \nLength of state = {}, whereas, number of ions = {}.".format(len(args), self.num_of_ions ) )
+                        
+                else:
+                        args = [thermal_dm( self.ion_motional_hilbert_space_dim, arg ) for arg in args]
+
+                        for i in range(len(args)):
+                            self.Ions[i].initialize_ion_motional_density_operator( self.ion_motional_hilbert_space_dim, args[i] )
 
 
         @property
@@ -237,7 +277,10 @@ class Chain:
         def set_couplings( self, omega_x, zpositions, potential='harmonic'):
 
             if potential == 'harmonic':
-                self.harmonic_couplings = self.generate_omegax(self.num_of_ions, omega_x, zpositions, nearest_neighbor_coupling=0)
+                if self.num_of_ions == 1:
+                    self.harmonic_couplings = [[omega_x]]
+                else:
+                    self.harmonic_couplings = self.generate_omegax(self.num_of_ions, omega_x, zpositions, nearest_neighbor_coupling=0)
 
 
         
