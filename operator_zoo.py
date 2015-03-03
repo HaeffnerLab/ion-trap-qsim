@@ -15,6 +15,10 @@ class OperatorZoo(object):
 
         self.a                =  [self.a_func(j) for j in range(self.chain.num_of_ions)]
 
+        self.excited_state_pop_func  =  lambda i: tensor( create(2) * destroy(2),
+                                                 tensor([ qeye(M) for j in range(self.chain.num_of_ions)] )                                       
+                                               )
+        self.excited_state_pop       =  [self.excited_state_pop_func(j) for j in range(self.chain.num_of_ions)]
 
 
 
@@ -29,10 +33,6 @@ class OperatorZoo(object):
         self.sigma_minus      =  [self.sigma_minus_func(j) for j in range(self.chain.num_of_ions)]
 
         #n        =  lambda i: a(i).dag() * a(i) # local phonon number, N>i>=0
-        self.excited_state_pop_func  =  lambda i: tensor( create(2) * destroy(2),
-                                                 tensor([ qeye(M) for j in range(self.chain.num_of_ions)] )                                       
-                                               )
-        self.excited_state_pop       =  [self.excited_state_pop_func(j) for j in range(self.chain.num_of_ions)]
 
         self.identity_op =  tensor( [qeye(M) for j in range(self.chain.num_of_ions)] )
                                

@@ -12,8 +12,9 @@ class IonTrap:
                 self.omegaz   =  2*np.pi * omegaz
                 self.potential_config = potential_config
 
-        def load(self, chain):
+        def load(self, chain, zpositions=[]):
 
+                self.zpositions = zpositions
                 self.chain    =   chain
                 #Find the eq positions:
                 p             =   simulation_parameters()
@@ -21,15 +22,14 @@ class IonTrap:
                 #Set the position of ions:
                 if self.potential_config == 'harmonic':
                         self.chain.set_zpositions( equilibrium_positions.get_positions(self.chain.num_of_ions, self.omegaz, p) )
-                else:
-                        print("Working on it.")
+                else:  
+                        if len(zpositions) == self.chain.num_of_ions:
+                                self.chain.set_zpositions( zpositions )
+                        else:
+                                raise Exception("Z position of ions must be given as a list with length equal to\n number of ions")
 
-                #Find the couplings:
-                if self.potential_config == 'harmonic':
-                        self.chain.set_couplings( self.omegax, equilibrium_positions.get_positions(self.chain.num_of_ions, self.omegaz, p) )
-                else:
-                        print("Working on it.")
-                
+                #Find and set the ion-ion couplings:
+                self.chain.set_couplings( self.omegax )
 
                 self.loaded   =  True
         

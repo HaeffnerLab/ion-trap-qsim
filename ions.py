@@ -123,7 +123,7 @@ class Ion:
                 	raise Exception("Ion electronic state could be only o (ground state) or 1 (excited state).")
 
 
-        def get_position(self):
+        def get_zposition(self):
                 try:
                 	return self.position
                 except AttributeError as e:
@@ -269,29 +269,28 @@ class Chain:
                         print("Number of given ions don't match with number of elements in zpositions array.")
 
 
-        def get_positions(self):
+        def get_zpositions(self):
                 
-                return [ion.get_position() for ion in self.Ions]
+                return [ion.get_zposition() for ion in self.Ions]
                 
 
-        def set_couplings( self, omega_x, zpositions, potential='harmonic'):
+        def set_couplings( self, omega_x):
 
-            if potential == 'harmonic':
                 if self.num_of_ions == 1:
-                    self.harmonic_couplings = [[omega_x]]
+                    self.couplings = [[omega_x]]
                 else:
-                    self.harmonic_couplings = self.generate_omegax(self.num_of_ions, omega_x, zpositions, nearest_neighbor_coupling=0)
-
-
+                    self.couplings = self.generate_omegax( omega_x, nearest_neighbor_coupling=0)
+       
+         
         
-        def generate_omegax(self, N, omega_x, zpositions, nearest_neighbor_coupling=0): 
+        def generate_omegax(self, omega_x, nearest_neighbor_coupling=0): 
 
-            couplings = self.generate_couplings(N, omega_x, zpositions, nearest_neighbor_coupling)
+            couplings = self.generate_couplings(self.num_of_ions, omega_x, self.get_zpositions(), nearest_neighbor_coupling)
             local_radial_freqs = self.generate_local_radial_freqs(omega_x, couplings) 
-            omegax = np.zeros((N, N))
+            omegax = np.zeros((self.num_of_ions, self.num_of_ions))
             #  Construct the matrix of local radial frequencies and couplings   
-            for i in range(N):
-                for j in range(N):
+            for i in range(self.num_of_ions):
+                for j in range(self.num_of_ions):
                     if i == j:
                         omegax[i][i] = local_radial_freqs[i]
                     else:
@@ -301,8 +300,8 @@ class Chain:
 
         def get_couplings(self, potential='harmonic'):
     
-            if potential == 'harmonic':
-                return self.harmonic_couplings
+            
+            return self.couplings
 
 
         @staticmethod
