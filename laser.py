@@ -7,6 +7,7 @@ class Laser:
                 self.sideband_num = kwargs['sideband_num']
                 self.intensity = kwargs['intensity']
                 self.detuning  =  kwargs['detuning']
+                self.phase     =  kwargs['phase']
                 self.eta = 0.05
 
 class Pulse:

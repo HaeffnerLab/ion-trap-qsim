@@ -3,7 +3,7 @@ from __future__ import division, absolute_import, print_function, unicode_litera
 import numpy as np 
 import matplotlib.pylab as plt
 import simulation_parameters
-from numpy import absolute, real, linspace, arange 
+from numpy import absolute, real, linspace, arange, exp
 from scipy.misc import factorial  
 from qutip import *
 from operator_zoo import OperatorZoo
@@ -116,15 +116,19 @@ class Dynamics(OperatorZoo):
         if regime == 'RWA':
             print("Simulation running in RWA regime")
             if laser.sideband_num > 0:
-                op = ( 1.j * self.eta * self.a[laser.ion_num-1].dag() )**abs(laser.sideband_num) / float(factorial(laser.sideband_num))
+                op = ( 1.j * self.eta * exp(1.j*laser.phase) * self.a[laser.ion_num-1].dag() )**abs(laser.sideband_num) / float(factorial(laser.sideband_num))
             elif laser.sideband_num < 0:     
-                op = ( 1.j * self.eta * self.a[laser.ion_num-1] )**abs(laser.sideband_num) / float(factorial(abs(laser.sideband_num)))
+                op = ( 1.j * self.eta * exp(1.j*laser.phase) * self.a[laser.ion_num-1] )**abs(laser.sideband_num) / float(factorial(abs(laser.sideband_num)))
             else:
                 op = 1
 
             op  *=  self.sigma_plus[laser.ion_num-1] 
 
             H   =  laser.intensity * ( op + op.dag() )
+
+            #Add detuning:
+            if laser.intensity != 0:
+                H   +=  laser.detuning * self.sigmaz[laser.ion_num-1]
 
             return H
 
@@ -145,7 +149,7 @@ class Dynamics(OperatorZoo):
         return  1.j * eta*omega * ( exp(-1.j*phase) * self.sigma_plus[ion_num] * self.a[ion_num].dag() - exp(1.j*phase) * self.sigma_minus[ion_num] * self.a[ion_num] ) 
 
 
-    def evolve_qutip(self, time_interval, observables, time_dependent=False):
+    def evolve_pure(self, time_interval, observables, time_dependent=False):
         psi0    =  self.chain.initial_state
         times = arange( time_interval[0], time_interval[1], self.time_precision )
         output1 = mcsolve(self.free_hamiltonian, psi0, times, [], observables)     

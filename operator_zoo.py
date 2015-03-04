@@ -34,8 +34,19 @@ class OperatorZoo(object):
 
         #n        =  lambda i: a(i).dag() * a(i) # local phonon number, N>i>=0
 
-        self.identity_op =  tensor( [qeye(M) for j in range(self.chain.num_of_ions)] )
+        self.motion_identity_op =  tensor( [qeye(M) for j in range(self.chain.num_of_ions)] )
                                
+
+        #self.sigmaz          =    tensor( sigmaz ,
+        #                                self.motion_identity_op    
+
+        #                                )
+        self.sigmaz_func  =  lambda i:  tensor( sigmaz,
+                                           tensor( [ qeye(M) for j in range(self.chain.num_of_ions)] ) 
+                                        )
+        self.sigmaz      =  [self.sigma_minus_func(j) for j in range(self.chain.num_of_ions)]
+
+
 
     @property
     def spin_identity_operators_arr(self):
