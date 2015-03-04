@@ -6,7 +6,7 @@ from equilibrium_positions import equilibrium_positions
 
 class IonTrap:
 
-        def __init__(self, omegax, omegaz, potential_config='harmonic'):
+        def __init__(self, omegax, omegaz, potential_config='potential'):
                 
                 self.omegax   =  2*np.pi * omegax
                 self.omegaz   =  2*np.pi * omegaz
@@ -20,9 +20,9 @@ class IonTrap:
                 p             =   simulation_parameters()
 
                 #Set the position of ions:
-                if self.potential_config == 'harmonic':
+                if self.potential_config == 'potential':
                         self.chain.set_zpositions( equilibrium_positions.get_positions(self.chain.num_of_ions, self.omegaz, p) )
-                else:  
+                elif self.potential_config == 'positions':  
                         if len(zpositions) == self.chain.num_of_ions:
                                 self.chain.set_zpositions( zpositions )
                         else:

@@ -161,11 +161,14 @@ class Chain:
                 self.Ions                              =  [Ion(i, self.ion_motional_hilbert_space_dim, self.ion_electronic_hilbert_space_dim, state_type) for i in range(N)]
                 self.state                             =  None
                 self.state_type                        =  state_type
+                self.motional_states_are_set           =  False
+                self.electronic_states_are_set         =  False
+
 
         
         def initialize_chain_electronic_states( self, **kwargs): 
                 ''' Initialize the initial electronic state of ions that are in coherent interaction with lasers
-                and pulses.
+                and pulses. kwargs include lasers and pulses as keys.
 
                 '''
                 self.chain_electronic_states_initialized = False
@@ -177,10 +180,10 @@ class Chain:
                         self.chain_electronic_states_initialized = True
                         try:
                             if self.state_type == 'pure':
-                                self.Ions[ion_num].initialize_ion_electronic_state( self.ion_electronic_hilbert_space_dim, self.Ions[ion_num].ion_electronic_state_number )
+                                self.Ions[ion_num-1].initialize_ion_electronic_state( self.ion_electronic_hilbert_space_dim, self.Ions[ion_num-1].ion_electronic_state_number )
                             elif self.state_type == 'density_operator':
-                                density_operator = basis( self.ion_electronic_hilbert_space_dim, self.Ions[ion_num].ion_electronic_state_number ) * basis( self.ion_electronic_hilbert_space_dim, self.Ions[ion_num].ion_electronic_state_number ).dag()
-                                self.Ions[ion_num].initialize_ion_electronic_density_operator( self.ion_electronic_hilbert_space_dim, density_operator )
+                                density_operator = basis( self.ion_electronic_hilbert_space_dim, self.Ions[ion_num-1].ion_electronic_state_number ) * basis( self.ion_electronic_hilbert_space_dim, self.Ions[ion_num-1].ion_electronic_state_number ).dag()
+                                self.Ions[ion_num-1].initialize_ion_electronic_density_operator( self.ion_electronic_hilbert_space_dim, density_operator )
                                 #else:
                                  #       print("Ion numbering starts at 0 and ends at number of ions - 1.")
                         except ValueError as e:
@@ -201,6 +204,7 @@ class Chain:
                         for i in range(len(args)):
                         	self.Ions[i].set_ion_electronic_state_number( args[i] )
 
+                self.electronic_states_are_set  =  True
 
         @property
         def get_electronic_state( self ):
@@ -224,6 +228,8 @@ class Chain:
                         for i in range(len(args)):
                         	self.Ions[i].initialize_ion_motional_state( self.ion_motional_hilbert_space_dim, args[i] )
 
+                self.motional_states_are_set  =  True
+
         def set_thermal_motional_state( self, args): 
                 ''' Initialize the initial motional state of ions given in input,
                 Example for input format:  args = (1.5, 1.0, ..., 2.4)
@@ -240,6 +246,7 @@ class Chain:
                         for i in range(len(args)):
                             self.Ions[i].initialize_ion_motional_density_operator( self.ion_motional_hilbert_space_dim, args[i] )
 
+                self.motional_states_are_set  =  True
 
         @property
         def get_motional_state( self ):
@@ -269,7 +276,7 @@ class Chain:
                         print("Number of given ions don't match with number of elements in zpositions array.")
 
 
-        def get_zpositions(self):
+        def get_positions(self):
                 
                 return [ion.get_zposition() for ion in self.Ions]
                 
@@ -285,7 +292,7 @@ class Chain:
         
         def generate_omegax(self, omega_x, nearest_neighbor_coupling=0): 
 
-            couplings = self.generate_couplings(self.num_of_ions, omega_x, self.get_zpositions(), nearest_neighbor_coupling)
+            couplings = self.generate_couplings(self.num_of_ions, omega_x, self.get_positions(), nearest_neighbor_coupling)
             local_radial_freqs = self.generate_local_radial_freqs(omega_x, couplings) 
             omegax = np.zeros((self.num_of_ions, self.num_of_ions))
             #  Construct the matrix of local radial frequencies and couplings   

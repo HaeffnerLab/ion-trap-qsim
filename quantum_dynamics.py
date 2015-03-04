@@ -3,26 +3,34 @@ from __future__ import division, absolute_import, print_function, unicode_litera
 import numpy as np 
 import matplotlib.pylab as plt
 import simulation_parameters
-from numpy import absolute, real, linspace, arange  
+from numpy import absolute, real, linspace, arange 
+from scipy.misc import factorial  
 from qutip import *
 from operator_zoo import OperatorZoo
 
 class Dynamics(OperatorZoo):
         
-    def __init__(self, chain, lasers, time_precision=2.e-6):
+    def __init__(self, chain, lasers=[], pulses=[], time_precision=2.e-6):
+ 
+        self.eta  =  0.05
         self.chain = chain
         self.time_precision = time_precision
         self.lasers = lasers
         super(Dynamics, self).__init__()
         self.expectations = [[]]
-        
+
+        if not self.chain.motional_states_are_set:
+            raise Exception("Motional states are not set.")
+        self.chain.initialize_chain_electronic_states(lasers=lasers, pulses=lasers)
+
         self.construct_free_hamiltonian()
         #self.hamiltonian         =  self.get_chain_motion_hamiltonian() 
         
         
         #self.exponential         =  (-1.j*self.hamiltonian * self.time_precision ).expm() 
-        self.exponential         =  self.identity_op - 1.j*self.free_hamiltonian * self.time_precision 
-    
+        #self.exponential         =  self.identity_op - 1.j*self.free_hamiltonian * self.time_precision 
+        
+
 
     def simulate(self, times, example, ion, rf, DELTA, delta_radial_freq, omegax_gradient_at_100microns):
 
@@ -84,20 +92,41 @@ class Dynamics(OperatorZoo):
 
         #Add lasers Hamiltonian terms:
         for laser in self.lasers:
-            self.free_hamiltonian += __get_1st_order_hamiltonian(laser.ion_num, laser.sideband_num, laser.intensity)
+            self.free_hamiltonian += self.get_1st_order_hamiltonian(laser)
 
         #Add chain free Hamiltonian: 
         self.free_hamiltonian  +=  self.get_chain_motion_hamiltonian()
 
 
 
-    def __get_laser_hamiltonian(self):
+    def get_laser_hamiltonian(self):
 
         H   =   0
         for laser in self.lasers:
-            H += __get_1st_order_hamiltonian(laser.ion_num, laser.sideband_num, laser.intensity)
+            H += get_1st_order_hamiltonian(laser)
 
         return H
+
+
+    def get_1st_order_hamiltonian(self, laser, regime='RWA'):
+        """ Generate the first carrier(sideband) Hamiltonian in the Lamb-Dicke regime up to 
+        1st order in eta**laser.sideband_num .
+
+        """
+        if regime == 'RWA':
+            print("Simulation running in RWA regime")
+            if laser.sideband_num > 0:
+                op = ( 1.j * self.eta * self.a[laser.ion_num-1].dag() )**abs(laser.sideband_num) / float(factorial(laser.sideband_num))
+            elif laser.sideband_num < 0:     
+                op = ( 1.j * self.eta * self.a[laser.ion_num-1] )**abs(laser.sideband_num) / float(factorial(abs(laser.sideband_num)))
+            else:
+                op = 1
+
+            op  *=  self.sigma_plus[laser.ion_num-1] 
+
+            H   =  laser.intensity * ( op + op.dag() )
+
+            return H
 
 
     def get_chain_motion_hamiltonian(self):
@@ -117,7 +146,7 @@ class Dynamics(OperatorZoo):
 
 
     def evolve_qutip(self, time_interval, observables, time_dependent=False):
-        psi0    =  self.chain.get_motional_state
+        psi0    =  self.chain.initial_state
         times = arange( time_interval[0], time_interval[1], self.time_precision )
         output1 = mcsolve(self.free_hamiltonian, psi0, times, [], observables)     
 

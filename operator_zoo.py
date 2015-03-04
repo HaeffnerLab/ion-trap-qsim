@@ -9,7 +9,7 @@ class OperatorZoo(object):
         M             =   self.chain.ion_motional_hilbert_space_dim
         
 
-        self.a_func        = lambda i: tensor( [ destroy(M) if j == i else qeye(M) for j in range(self.chain.num_of_ions) ] ) 
+        self.a_func        = lambda i: tensor( qeye(2), tensor( [ destroy(M) if j == i else qeye(M) for j in range(self.chain.num_of_ions) ] ) )
                                      
         
 
