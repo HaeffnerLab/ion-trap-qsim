@@ -188,7 +188,7 @@ class Chain:
                                  #       print("Ion numbering starts at 0 and ends at number of ions - 1.")
                         except ValueError as e:
                                 print("Error: Ions name formatting must be as 'ion10' ", e)
-
+                
 
         def set_pure_electronic_state_numbers( self, args ):
                 ''' Set the initial electronic state of ions given in input,
@@ -198,7 +198,7 @@ class Chain:
                 '''
 
                 if len(args) != self.num_of_ions:
-                        print("Number of arguments must be equal to the number of ions in the chain. \nLength of state = {}, whereas, number of ions = {}.".format(len(args), self.num_of_ions ) )
+                        raise Exception("Number of arguments must be equal to the number of ions in the chain. \nLength of state = {}, whereas, number of ions = {}.".format(len(args), self.num_of_ions ) )
                         
                 else:
                         for i in range(len(args)):
@@ -273,7 +273,7 @@ class Chain:
                                 self.Ions[i].set_position( zpositions[i] )
 
                 else:
-                        print("Number of given ions don't match with number of elements in zpositions array.")
+                        raise Exception("Number of given ions don't match with number of elements in zpositions array.")
 
 
         def get_positions(self):

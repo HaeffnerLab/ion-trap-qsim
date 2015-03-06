@@ -3,7 +3,7 @@ from __future__ import division, absolute_import, print_function, unicode_litera
 import numpy as np 
 import matplotlib.pylab as plt
 import simulation_parameters
-from numpy import absolute, real, linspace, arange, exp
+from numpy import absolute, real, linspace, arange, exp, pi
 from scipy.misc import factorial  
 from qutip import *
 from operator_zoo import OperatorZoo
@@ -16,6 +16,10 @@ class Dynamics(OperatorZoo):
         self.chain = chain
         self.time_precision = time_precision
         self.lasers = lasers
+        for laser in self.lasers:
+            if laser.ion_num > chain.num_of_ions or laser.ion_num < 1:
+                raise Exception( "Laser ion number must be a number between 1 and {}.".format(chain.num_of_ions) )
+
         super(Dynamics, self).__init__()
         self.expectations = [[]]
 
@@ -23,6 +27,7 @@ class Dynamics(OperatorZoo):
             raise Exception("Motional states are not set.")
         self.chain.initialize_chain_electronic_states(lasers=lasers, pulses=lasers)
 
+        self.chain_motion_hamiltonian = self.get_chain_motion_hamiltonian()
         self.construct_free_hamiltonian()
         #self.hamiltonian         =  self.get_chain_motion_hamiltonian() 
         
@@ -95,7 +100,7 @@ class Dynamics(OperatorZoo):
             self.free_hamiltonian += self.get_1st_order_hamiltonian(laser)
 
         #Add chain free Hamiltonian: 
-        self.free_hamiltonian  +=  self.get_chain_motion_hamiltonian()
+        self.free_hamiltonian  +=  self.chain_motion_hamiltonian
 
 
 
@@ -116,19 +121,22 @@ class Dynamics(OperatorZoo):
         if regime == 'RWA':
             print("Simulation running in RWA regime")
             if laser.sideband_num > 0:
-                op = ( 1.j * self.eta * exp(1.j*laser.phase) * self.a[laser.ion_num-1].dag() )**abs(laser.sideband_num) / float(factorial(laser.sideband_num))
+                op = ( 1.j * self.eta * exp(1.j*laser.phase) * self.a[laser.ion_num-1].dag() )**int(laser.sideband_num) / float(factorial(laser.sideband_num))
             elif laser.sideband_num < 0:     
-                op = ( 1.j * self.eta * exp(1.j*laser.phase) * self.a[laser.ion_num-1] )**abs(laser.sideband_num) / float(factorial(abs(laser.sideband_num)))
+                op = ( 1.j * self.eta * exp(1.j*laser.phase) * self.a[laser.ion_num-1] )**abs(int(laser.sideband_num)) / float(factorial(abs(laser.sideband_num)))
             else:
                 op = 1
 
-            op  *=  self.sigma_plus[laser.ion_num-1] 
+            op  =  self.sigma_plus[laser.ion_num-1] * op
 
-            H   =  laser.intensity * ( op + op.dag() )
+            H   =  laser.intensity * ( op + op.dag() )  \
+                    - self.chain.couplings[ laser.ion_num -1 ][ laser.ion_num -1 ] * sum( [ self.a[i].dag() * self.a[i] for i in range(self.chain.num_of_ions)  ] )
 
-            #Add detuning:
+
+
+            #Add effect of laser detuning from local carrier or sideband frequency
             if laser.intensity != 0:
-                H   +=  laser.detuning * self.sigmaz[laser.ion_num-1]
+                H   +=  -1 * laser.detuning * self.sigmaz[laser.ion_num-1]
 
             return H
 
