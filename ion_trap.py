@@ -31,6 +31,10 @@ class IonTrap:
                 #Find and set the ion-ion couplings:
                 self.chain.set_couplings( self.omegax )
 
+                #Set expansion of chain's motion local in terms of normal destruction operators and vice versa, and eigenvalues.
+                self.chain.set_normal_mode_structure()
+
+
                 self.loaded   =  True
         
         def set_omegaz(self, omegaz):

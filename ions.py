@@ -4,6 +4,7 @@ from qutip import *
 from scipy import *
 import numpy as np
 from error_handling import *
+import scipy.linalg as LA
 
 
 class HilbertSpace(object):
@@ -288,6 +289,7 @@ class Chain:
                 else:
                     self.couplings = self.generate_omegax( omega_x, nearest_neighbor_coupling=0)
        
+
          
         
         def generate_omegax(self, omega_x, nearest_neighbor_coupling=0): 
@@ -305,10 +307,28 @@ class Chain:
             return omegax
 
 
+
+
+        def set_normal_mode_structure(self):
+            """Set the normal mode structure.
+
+            """
+
+            #Expand local destruction operator of ions in terms of normal modes 
+            self.normal_in_local_modes = LA.eig( self.couplings )[1]
+            #Expand normal destruction operator of chain in terms of local ion modes
+            self.local_in_normal_modes = np.conjugate(LA.eig( self.couplings )[1].T)
+            #Compute normal mode eigenvalues as reals
+            self.eigenvalues = abs(LA.eig( self.couplings )[0])
+
+
+
         def get_couplings(self, potential='harmonic'):
     
             
             return self.couplings
+
+
 
 
         @staticmethod

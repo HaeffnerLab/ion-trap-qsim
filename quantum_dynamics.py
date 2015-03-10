@@ -21,20 +21,27 @@ class Dynamics(OperatorZoo):
                 raise Exception( "Laser ion number must be a number between 1 and {}.".format(chain.num_of_ions) )
 
         super(Dynamics, self).__init__()
+
+
+
         self.expectations = [[]]
 
         if not self.chain.motional_states_are_set:
             raise Exception("Motional states are not set.")
-        self.chain.initialize_chain_electronic_states(lasers=lasers, pulses=lasers)
+        self.chain.initialize_chain_electronic_states(lasers=lasers, pulses=pulses)
 
         self.chain_motion_hamiltonian = self.get_chain_motion_hamiltonian()
-        self.construct_free_hamiltonian()
+        self.construct_free_hamiltonian('spin')
         #self.hamiltonian         =  self.get_chain_motion_hamiltonian() 
         
         
         #self.exponential         =  (-1.j*self.hamiltonian * self.time_precision ).expm() 
         #self.exponential         =  self.identity_op - 1.j*self.free_hamiltonian * self.time_precision 
         
+
+        #Normal mode stuff:
+
+
 
 
     def simulate(self, times, example, ion, rf, DELTA, delta_radial_freq, omegax_gradient_at_100microns):
@@ -91,16 +98,32 @@ class Dynamics(OperatorZoo):
             self.time_evol_op_list  =  time_evol_op_list
             
 
-    def construct_free_hamiltonian(self):
+    def construct_free_hamiltonian(self, frame):
 
-        self.free_hamiltonian  =  0
+        if frame == 'normal_modes' or frame == 'spin':
 
-        #Add lasers Hamiltonian terms:
-        for laser in self.lasers:
-            self.free_hamiltonian += self.get_1st_order_hamiltonian(laser)
+            self.free_hamiltonian  =  0
 
-        #Add chain free Hamiltonian: 
-        self.free_hamiltonian  +=  self.chain_motion_hamiltonian
+            #Add lasers Hamiltonian terms:
+            for laser in self.lasers:
+                self.free_hamiltonian += self.get_1st_order_hamiltonian(laser, frame)
+
+
+
+
+
+        elif frame == 'local_modes':
+            self.free_hamiltonian  =  0
+
+            #Add lasers Hamiltonian terms:
+            for laser in self.lasers:
+                self.free_hamiltonian += self.get_1st_order_hamiltonian(laser, frame)
+
+            #Add chain free Hamiltonian: 
+            self.free_hamiltonian  +=  self.chain_motion_hamiltonian
+
+        else:
+            raise Exception("Frame must be specified.")
 
 
 
@@ -108,35 +131,53 @@ class Dynamics(OperatorZoo):
 
         H   =   0
         for laser in self.lasers:
-            H += get_1st_order_hamiltonian(laser)
+            H += get_1st_order_hamiltonian(laser, frame)
 
         return H
 
 
-    def get_1st_order_hamiltonian(self, laser, regime='RWA'):
+    def get_1st_order_hamiltonian(self, laser, frame,regime='RWA'):
         """ Generate the first carrier(sideband) Hamiltonian in the Lamb-Dicke regime up to 
         1st order in eta**laser.sideband_num .
 
         """
+
         if regime == 'RWA':
             print("Simulation running in RWA regime")
             if laser.sideband_num > 0:
-                op = ( 1.j * self.eta * exp(1.j*laser.phase) * self.a[laser.ion_num-1].dag() )**int(laser.sideband_num) / float(factorial(laser.sideband_num))
+                op = ( 1.j * laser.eta * exp(1.j*laser.phase) * self.a[laser.ion_num-1].dag() )**int(laser.sideband_num) / float(factorial(laser.sideband_num))
             elif laser.sideband_num < 0:     
-                op = ( 1.j * self.eta * exp(1.j*laser.phase) * self.a[laser.ion_num-1] )**abs(int(laser.sideband_num)) / float(factorial(abs(laser.sideband_num)))
+                op = ( 1.j * laser.eta * exp(1.j*laser.phase) * self.a[laser.ion_num-1] )**abs(int(laser.sideband_num)) / float(factorial(abs(laser.sideband_num)))
             else:
                 op = 1
 
             op  =  self.sigma_plus[laser.ion_num-1] * op
 
-            H   =  laser.intensity * ( op + op.dag() )  \
-                    - self.chain.couplings[ laser.ion_num -1 ][ laser.ion_num -1 ] * sum( [ self.a[i].dag() * self.a[i] for i in range(self.chain.num_of_ions)  ] )
 
 
+            if frame == 'local_modes':
+                
+                H   =  laser.intensity * ( op + op.dag() )  \
+                        - self.chain.couplings[ laser.ion_num -1 ][ laser.ion_num -1 ] * sum( [ self.a[i].dag() * self.a[i] for i in range(self.chain.num_of_ions)  ] )
+            
+        
+            #Both rotating wave frames used below agree with each other for 1 laser (spin):                
+            elif frame == 'normal_modes':
+                #Add effect of laser detuning from local carrier or sideband frequency by rotating normal modes frame:
+                ref_freq  = self.chain.couplings[ laser.ion_num -1 ][ laser.ion_num -1 ] + laser.detuning
+                H   =  laser.intensity * ( op + op.dag() )  \
+                        - sum( [   ( ref_freq - self.chain.eigenvalues[i]  ) * self.D[i].dag() * self.D[i] for i in range(self.chain.num_of_ions)  ] )               
 
-            #Add effect of laser detuning from local carrier or sideband frequency
-            if laser.intensity != 0:
-                H   +=  -1 * laser.detuning * self.sigmaz[laser.ion_num-1]
+            elif frame == 'spin': 
+
+                ref_freq  = self.chain.couplings[ laser.ion_num -1 ][ laser.ion_num -1 ] 
+                H   =  laser.intensity * ( op + op.dag() )  \
+                        - sum( [   ( ref_freq - self.chain.eigenvalues[i]  ) * self.D[i].dag() * self.D[i] for i in range(self.chain.num_of_ions)  ] )               
+
+                #Add effect of laser detuning from local carrier or sideband frequency by rotating spin frame:
+                H   +=  +1 * (laser.detuning/2.) * self.sigmaz[laser.ion_num-1]
+
+
 
             return H
 
