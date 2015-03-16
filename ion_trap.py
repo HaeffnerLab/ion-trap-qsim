@@ -14,7 +14,7 @@ class IonTrap:
 
         def load(self, chain, zpositions=[]):
 
-                self.zpositions = zpositions
+                #self.zpositions = zpositions
                 self.chain    =   chain
                 #Find the eq positions:
                 p             =   simulation_parameters()
@@ -27,7 +27,8 @@ class IonTrap:
                                 self.chain.set_zpositions( zpositions )
                         else:
                                 raise Exception("Z position of ions must be given as a list with length equal to\n number of ions")
-
+                else:
+                        raise Exception('potential_config {} unclear.'.format(self.potential_config))
                 #Find and set the ion-ion couplings:
                 self.chain.set_couplings( self.omegax )
 

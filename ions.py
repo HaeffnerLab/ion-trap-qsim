@@ -165,7 +165,6 @@ class Chain:
                 self.motional_states_are_set           =  False
                 self.electronic_states_are_set         =  False
 
-
         
         def initialize_chain_electronic_states( self, **kwargs): 
                 ''' Initialize the initial electronic state of ions that are in coherent interaction with lasers
