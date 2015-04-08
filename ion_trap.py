@@ -6,11 +6,17 @@ from equilibrium_positions import equilibrium_positions
 
 class IonTrap:
 
-        def __init__(self, omegax, omegaz, potential_config='potential'):
+        def __init__(self, omegax, omegaz, potential_config='potential', freq_reference = 0.0, magnetic_field_gradient = 0.0):
                 
                 self.omegax   =  2*np.pi * omegax
                 self.omegaz   =  2*np.pi * omegaz
                 self.potential_config = potential_config
+
+                #Frequency reference is the frequency with respect to
+                # which all other frequencies in the entire simulation 
+                # are measured:
+                self.freq_reference  = freq_reference  
+                self.magnetic_field_gradient = magnetic_field_gradient
 
         def load(self, chain, zpositions=[]):
 
@@ -28,7 +34,10 @@ class IonTrap:
                         else:
                                 raise Exception("Z position of ions must be given as a list with length equal to\n number of ions")
                 else:
-                        raise Exception('potential_config {} unclear.'.format(self.potential_config))
+                        raise Exception('Wrong specification for potential_config {}.'.format(self.potential_config))
+               
+                self.chain.set_carrier_frequencies(self.freq_reference, self.magnetic_field_gradient)
+
                 #Find and set the ion-ion couplings:
                 self.chain.set_couplings( self.omegax )
 

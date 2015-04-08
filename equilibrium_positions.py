@@ -1,4 +1,8 @@
 import numpy as np
+from scipy.optimize import newton_krylov as nt
+import simulation_parameters
+p = simulation_parameters.simulation_parameters()
+
 '''
 known relative positions of the ions within a linear ion chain
 
@@ -37,12 +41,18 @@ class equilibrium_positions(object):
         takes the trap frequency in Rad/Sec and returns the axial positions of an ion chain for that frequency
         '''
 
-        w = trap_frequency
-        length_scale = (p.coulomb_coeff / (w**2 * p.mass))**(1./3)
-        lengths = length_scale * np.array(cls.position_dict[number_ions])
-        return lengths
+        #w = trap_frequency
+        #length_scale = (p.coulomb_coeff / (w**2 * p.mass))**(1./3)
+        #lengths = length_scale * np.array(cls.position_dict[number_ions])
 
-if __name__ == '__main__':
-    import simulation_parameters
-    p = simulation_parameters.simulation_parameters()
-    print equilibrium_positions.get_positions(2, 100e3, p)
+
+        N = number_ions
+        omegaz = trap_frequency
+
+        #Look at DJ 1997 paper
+        u0 = (2.018/(N**0.559)) * np.array( np.linspace(-1,1, N) )
+        func = lambda m, u: u[m] - sum( [ 1./(u[m]-u[n])**2 for n in range(m) ] ) + sum( [ 1./(u[m]-u[n])**2 for n in range(m+1, N) ] )
+        f = lambda u : [func(m,u) for m in range(N)]
+        positions_arr =  nt(f, u0) * ( (p.coulomb_coeff / (omegaz**2 * p.mass))**(1./3) ) 
+
+        return positions_arr

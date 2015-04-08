@@ -50,7 +50,7 @@ class Ion:
     motional_state (>=0) and electronic_state (either 0 or 1).
 
     '''
-    def __init__( self, ion_number, ion_motional_hilbert_space_dim, ion_electronic_hilbert_space_dim = 2, state_type='pure', carrier_freq = 0.0):
+    def __init__( self, ion_number, ion_motional_hilbert_space_dim, ion_electronic_hilbert_space_dim = 2, state_type='pure'):
 
             self.ion_number                        =  ion_number
             #HilbertSpace.__init__(self)
@@ -58,10 +58,9 @@ class Ion:
             self.ion_electronic_hilbert_space_dim  =  ion_electronic_hilbert_space_dim
             self.state_type                        =  state_type
             self.ion_motional_state                =  None
-            self.carrier_freq                      =  carrier_freq
+            self.ion_carrier_freq                  =  0.0 #If different for each ion, set a refrence here or 
             #self.ion_electronic_state              =  None
             #self.set_hilbert_space()
-
 
     def initialize_ion_state(func):
 
@@ -178,9 +177,7 @@ class Chain:
         ions_interacting_with_laser  =  [laser.ion_num for laser in all_lasers]
 
         for ion_num in ions_interacting_with_laser:
-                
                 self.chain_electronic_states_initialized = True
-                
                 try:
                     if self.state_type == 'pure':
                         self.Ions[ion_num-1].initialize_ion_electronic_state( self.ion_electronic_hilbert_space_dim, self.Ions[ion_num-1].ion_electronic_state_number )
@@ -282,17 +279,7 @@ class Chain:
     def get_positions(self):
             
         return [ion.get_zposition() for ion in self.Ions]
-
-
-    def set_carrier_frequencies(self, freq_reference, magnetic_field_gradient):
-        """Set carrier frequencies for each ion in the chain.
-        For now set all carrier frequencies equal to each other.
-
-        """
-        
-        for ion in self.Ions:
-            ion.carrier_freq = freq_reference
-
+            
 
     def set_couplings( self, omega_x):
 

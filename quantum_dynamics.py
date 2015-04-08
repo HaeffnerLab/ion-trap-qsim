@@ -31,7 +31,9 @@ class Dynamics(OperatorZoo):
         self.chain.initialize_chain_electronic_states(lasers=lasers, pulses=pulses)
 
         self.chain_motion_hamiltonian = self.get_chain_motion_hamiltonian()
-        self.construct_free_hamiltonian('spin')
+
+        frame = 'local_modes'
+        self.construct_free_hamiltonian(frame)
         #self.hamiltonian         =  self.get_chain_motion_hamiltonian() 
         
         
@@ -139,7 +141,8 @@ class Dynamics(OperatorZoo):
     def get_1st_order_hamiltonian(self, laser, frame,regime='RWA'):
         """ Generate the first carrier(sideband) Hamiltonian in the Lamb-Dicke regime up to 
         1st order in eta**laser.sideband_num .
-
+        Currently frame = normal_modes works for sideband_num = +1,-1 only (for detunings sideband_num must be 
+            considered.)
         """
 
         if regime == 'RWA':
@@ -159,12 +162,19 @@ class Dynamics(OperatorZoo):
                 
                 H   =  laser.intensity * ( op + op.dag() )  \
                         - self.chain.couplings[ laser.ion_num -1 ][ laser.ion_num -1 ] * sum( [ self.a[i].dag() * self.a[i] for i in range(self.chain.num_of_ions)  ] )
+
+            elif frame == 'normal_modes_new':
+                
+                #Add effect of laser detuning from local carrier or sideband frequency by rotating normal modes frame:
+                ref_freq  = laser.sideband_num * self.chain.couplings[ laser.ion_num -1 ][ laser.ion_num -1 ] + laser.detuning
+                H   =  laser.intensity * ( op + op.dag() )  \
+                        - sum( [   ( ref_freq - self.chain.eigenvalues[i]  ) * self.D[i].dag() * self.D[i] for i in range(self.chain.num_of_ions)  ] )               
             
         
             #Both rotating wave frames used below agree with each other for 1 laser (spin):                
             elif frame == 'normal_modes':
                 #Add effect of laser detuning from local carrier or sideband frequency by rotating normal modes frame:
-                ref_freq  = self.chain.couplings[ laser.ion_num -1 ][ laser.ion_num -1 ] + laser.detuning
+                ref_freq  = laser.sideband_num * self.chain.couplings[ laser.ion_num -1 ][ laser.ion_num -1 ] + laser.detuning
                 H   =  laser.intensity * ( op + op.dag() )  \
                         - sum( [   ( ref_freq - self.chain.eigenvalues[i]  ) * self.D[i].dag() * self.D[i] for i in range(self.chain.num_of_ions)  ] )               
 
