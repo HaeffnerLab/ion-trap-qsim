@@ -7,10 +7,11 @@ from numpy import absolute, real, linspace, arange, exp, pi
 from scipy.misc import factorial  
 from qutip import *
 from operator_zoo import OperatorZoo
+import scipy.linalg as LA
 
 class Dynamics(OperatorZoo):
         
-    def __init__(self, chain, lasers=[], pulses=[], time_precision=2.e-6):
+    def __init__(self, chain, mode='quantum', lasers=[], pulses=[], time_precision=2.e-6):
  
         self.eta  =  0.05
         self.chain = chain
@@ -26,9 +27,10 @@ class Dynamics(OperatorZoo):
 
         self.expectations = [[]]
 
-        if not self.chain.motional_states_are_set:
-            raise Exception("Motional states are not set.")
-        self.chain.initialize_chain_electronic_states(lasers=lasers, pulses=pulses)
+        if mode == 'quantum':
+            if not self.chain.motional_states_are_set:
+                raise Exception("Motional states are not set.")
+            self.chain.initialize_chain_electronic_states(lasers=lasers, pulses=pulses)
 
         self.chain_motion_hamiltonian = self.get_chain_motion_hamiltonian()
 
@@ -250,6 +252,29 @@ class Dynamics(OperatorZoo):
             yield self.time_evol_op
             self.time_evol_op        =   exponential * self.time_evol_op
             
+
+    def get_ramsey_contrast( self, ion_num, time_interval = [0., 700.e-6], time_precision=1.e-6):
+        """Return an array of amplitudes of ion ion_num at each time in time_interval   
+
+        """
+        
+        def gamma(j, t, chain):
+            eigenvectorsT = LA.eig(chain.get_couplings())[1]
+            eigenfreqs   = LA.eig(chain.get_couplings())[0]
+
+            s = 0
+            for i in range(chain.num_of_ions):
+                s += eigenvectorsT[j][i] * eigenvectorsT[j][i] * np.exp(1.j* eigenfreqs[i] * t)
+            return s
+        
+        #time_interval = [0., 700.e-6]
+        #times = np.arange(0., 700.e-6, time_precision)
+
+        times = np.arange(time_interval[0], time_interval[1], time_precision)
+        ion = ion_num
+
+        ex = abs(np.conjugate(np.array([gamma(ion, t, self.chain) for t in times])) * np.array([gamma(ion, t, self.chain) for t in times]))
+        return ex
 
 
     #def add_pulse( self, ion_num, pulse_duration, sideband_num = 1):

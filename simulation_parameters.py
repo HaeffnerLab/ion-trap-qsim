@@ -18,6 +18,7 @@ class simulation_parameters(object):
         #ion parameters
         self.mass = 40 * 1.6605402e-27 #40 amu in kg
         self.coulomb_coeff = 2.30707955552e-28 # k =  U.e**2 / (4.0 * U.pi * U.eps0) 
+
         self.hbar = 1.05457266913e-34
         self.transition_gamma = (1 / (7.1 * 10**-9)) #Gamma = 1 / Tau
         #laser
