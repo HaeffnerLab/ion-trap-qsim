@@ -38,7 +38,7 @@ class IonTrap:
 
                 #Set the position of ions:
                 if self.potential.config == 'harmonic' or self.potential.config == 'generic':
-                        self.chain.set_zpositions( equilibrium_positions.get_positions(self.chain.num_of_ions, self.potential, self.p) )
+                        self.chain.set_zpositions( equilibrium_positions.get_positions(self.chain.num_of_ions, self.potential) )
                 elif self.potential.config == 'positions':  
                         if len(zpositions) == self.chain.num_of_ions:
                                 self.chain.set_zpositions( zpositions )

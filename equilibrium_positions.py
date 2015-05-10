@@ -13,7 +13,7 @@ class equilibrium_positions(object):
            If potenial.config is 'generic' it takes potential function on the trap axis and returns positions (assuming 
             a minimum exists for the given number of ions.
 
-            initial_guess is an initial guess for positions of ions in SI units. 
+            initial_positions_guess is an initial guess for positions of ions in SI units. 
         '''
 
         N = number_of_ions
@@ -24,7 +24,7 @@ class equilibrium_positions(object):
             #Look at DJ 1997 paper, finding an initial guess using the harmonic term of the potential,
             #assuming N ions are actually trappable with the given potential.
 
-            if len(initial_guess) !=0:
+            if len(initial_positions_guess) == 0:
                 u0                     = (2.018/(N**0.559)) * np.array( np.linspace(-1,1, N) )
                 func_harmonic          = lambda m, u: u[m] - sum( [ 1./(u[m]-u[n])**2 for n in range(m) ] ) + sum( [ 1./(u[m]-u[n])**2 for n in range(m+1, N) ] )
                 f_harmonic             = lambda u : [func_harmonic(m,u) for m in range(N)]
@@ -36,12 +36,15 @@ class equilibrium_positions(object):
                 u_guess                = positions_arr_harmonic / position_scale_factor
 
             else:
-                u_guess                = initial_guess
+                u_guess                = initial_positions_guess
 
             print(potential.rescaled_Vz_deriv)
 
             func          = lambda m, u: potential.rescaled_Vz_deriv(u[m]) - sum( [ 1./(u[m]-u[n])**2 for n in range(m) ] ) + sum( [ 1./(u[m]-u[n])**2 for n in range(m+1, N) ] )
             f             = lambda u : [func(m,u) for m in range(N)]
+
+            print("This: "+str(len(u_guess)))
+            print(N)
 
             positions_arr =  nt(f, u_guess) * position_scale_factor
        

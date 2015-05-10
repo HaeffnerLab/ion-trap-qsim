@@ -237,7 +237,7 @@ class Spectrum:
 
         def set_ions_positions(self):
 
-                self.params.dummy_trap.set_potential(fz_along_Z) #Set trap potential
+                self.params.dummy_trap.set_potential(self.fz_along_Z) #Set trap potential
                 try:
                     self.params.dummy_trap.load( self.params.chain ) #load ions with this potential
                 except ValueError, e:
