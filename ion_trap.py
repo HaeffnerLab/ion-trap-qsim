@@ -13,7 +13,10 @@ class IonTrap:
                 self.omegax   =  2*np.pi * omegax
                 self.omegaz   =  2*np.pi * omegaz
                 self.p             =   simulation_parameters()
-                self.potential   =  Potential(potential_config, self.omegaz)
+                if potential_config == 'harmonic':
+                        self.potential   =  Potential(potential_config, self.omegaz)
+                elif potential_config == 'generic':
+                         self.potential   =  Potential(potential_config )
 
                 #Frequency reference is the frequency with respect to
                 # which all other frequencies in the entire simulation 
@@ -22,6 +25,11 @@ class IonTrap:
                 self.magnetic_field_gradient = magnetic_field_gradient
 
         def load(self, chain, zpositions=[]):
+
+                try:
+                        potential_config = self.potential.config
+                except AttributeError, e:
+                        print("Potential is not set: IonTrap.set_potential()")
 
                 #self.zpositions = zpositions
                 self.chain    =   chain
@@ -65,8 +73,14 @@ class IonTrap:
                 self.potential.config = 'positions'
                 self.load(self.chain, zpositions)
 
-        def set_potential(self, ):
+        def set_potential(self, fz ):
+                """ Take fz = V(x_0, y_0, z), the potential along Z axis 
+                    and pass it to the Potential instance.
+
+                """
+
                 self.potential.config = 'generic'
+                self.potential.set_fz( fz )
 
 
 class Potential(object):
@@ -91,16 +105,25 @@ class Potential(object):
                 """ Set func which is a numpy.polynomial (poly1d) object, determining V(x_0,y_0, z), potential along the Z trap axis
                 """
                 self.config = 'generic'
-                self.axial_freq  = sqrt(array( self.func )[::-1][2]/(0.5*self.p.mass))
-                position_scale_factor  = (self.p.coulomb_coeff / (omegaz**2 * self.p.mass))**(1./3) 
-                self.Vz_deriv = polyder(self.func)
-                self.Vz_deriv_arr = array(self.Vz_deriv)
-                self.Vz_deriv_rescaled_arr = array( [  self.Vz_deriv_arr[v]* (position_scale_factor**v) for v in range( len( self.Vz_deriv_arr ) ) ] )/(position_scale_factor*self.p.mass*self.axial_freq**2)
 
-                #Getting rid of constant term in case it is large (not good for minimization):
-                self.Vz_deriv_rescaled_arr[-1] = 0 #Constant term is the last of the poly1d arrays
-                self.Vz_deriv_rescaled = poly1d( self.Vz_deriv_rescaled_arr )
+                self.axial_freq  = sqrt(array( func )[::-1][2]/(0.5*self.p.mass))
+                position_scale_factor  = (self.p.coulomb_coeff / (self.axial_freq**2 * self.p.mass))**(1./3) 
+                print(position_scale_factor)
+                self.Vz_deriv = polyder(func)
+                print(self.Vz_deriv)
+                print(self.Vz_deriv.order)
+                self.Vz_deriv_inverted_arr = array(self.Vz_deriv)[::-1]
+                print( self.Vz_deriv_inverted_arr  )
+                self.rescaled_Vz_deriv_inverted_arr = array( [  self.Vz_deriv_inverted_arr[v]* (position_scale_factor**v) for v in range( len( self.Vz_deriv_inverted_arr ) ) ] )/(position_scale_factor*self.p.mass*self.axial_freq**2)
+                
+                #Constant term is important in rescaled_Vz_deriv since it represents electric field along Z axis and 
+                #leads to a shift in trap center and positions along Z axis.
+                #self.rescaled_Vz_deriv_inverted_arr[0] = 0. #Constant term is the last of the poly1d arrays
+                self.rescaled_Vz_deriv_arr = self.rescaled_Vz_deriv_inverted_arr[::-1]
+                self.rescaled_Vz_deriv = poly1d( self.rescaled_Vz_deriv_arr )
+                print(self.axial_freq)
 
         def update(self, update_func):
 
                 self.Vz += update_func
+
