@@ -81,7 +81,7 @@ class IonTrap:
 
                 self.potential.config = 'generic'
                 self.potential.set_fz( fz )
-
+               
 
 class Potential(object):
 

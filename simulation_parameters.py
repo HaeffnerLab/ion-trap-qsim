@@ -5,18 +5,17 @@ class simulation_parameters(object):
     
     def __init__(self):
     
-        self.number_ions = 5
-        #trap frequencies
+        
         self.f_drve = 30.0 * 10**6#Hz
-        self.f_x = 4.0 * 10**6#MHz
-        self.f_y = 3.0 * 10**6#Hz
-        self.f_z = 0.2 * 10**6#Hz
+        
         #simulation parameters
         self.damping = 0 #optional velocity damping, useful for finding equlibrium positions
         self.simulation_duration = 0.002 #seconds
         self.timestep = (1 / self.f_drve) /100#seconds
         #ion parameters
         self.mass = 40 * 1.6605402e-27 #40 amu in kg
+        
+        self.charge        = 1.6e-19
         self.coulomb_coeff = 2.30707955552e-28 # k =  U.e**2 / (4.0 * U.pi * U.eps0) 
 
         self.hbar = 1.05457266913e-34

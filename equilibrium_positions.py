@@ -7,7 +7,7 @@ class equilibrium_positions(object):
 
     
     @classmethod
-    def get_positions(cls, number_of_ions, potential, initial_guess=[]):
+    def get_positions(cls, number_of_ions, potential, initial_positions_guess=[]):
         
         '''If potenial.config is 'harmonic' it takes the trap frequency in Rad/Sec and returns the axial positions of an ion chain for that frequency
            If potenial.config is 'generic' it takes potential function on the trap axis and returns positions (assuming 
@@ -25,7 +25,7 @@ class equilibrium_positions(object):
             #assuming N ions are actually trappable with the given potential.
 
             if len(initial_guess) !=0:
-                u0 = (2.018/(N**0.559)) * np.array( np.linspace(-1,1, N) )
+                u0                     = (2.018/(N**0.559)) * np.array( np.linspace(-1,1, N) )
                 func_harmonic          = lambda m, u: u[m] - sum( [ 1./(u[m]-u[n])**2 for n in range(m) ] ) + sum( [ 1./(u[m]-u[n])**2 for n in range(m+1, N) ] )
                 f_harmonic             = lambda u : [func_harmonic(m,u) for m in range(N)]
                 position_scale_factor  = (p.coulomb_coeff / (omegaz**2 * p.mass))**(1./3) 
@@ -33,15 +33,15 @@ class equilibrium_positions(object):
 
                 #Using rescaled ion positions in a harmonic potential obtained from coefficient of z^2 as initial guess for potential
                 #minimization, find ion positions in the case of generic potential
-                u_guess = positions_arr_harmonic / position_scale_factor
+                u_guess                = positions_arr_harmonic / position_scale_factor
 
             else:
-                u_guess = initial_guess
+                u_guess                = initial_guess
 
             print(potential.rescaled_Vz_deriv)
 
-            func    = lambda m, u: potential.rescaled_Vz_deriv(u[m]) - sum( [ 1./(u[m]-u[n])**2 for n in range(m) ] ) + sum( [ 1./(u[m]-u[n])**2 for n in range(m+1, N) ] )
-            f       = lambda u : [func(m,u) for m in range(N)]
+            func          = lambda m, u: potential.rescaled_Vz_deriv(u[m]) - sum( [ 1./(u[m]-u[n])**2 for n in range(m) ] ) + sum( [ 1./(u[m]-u[n])**2 for n in range(m+1, N) ] )
+            f             = lambda u : [func(m,u) for m in range(N)]
 
             positions_arr =  nt(f, u_guess) * position_scale_factor
        

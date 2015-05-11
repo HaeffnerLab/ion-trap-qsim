@@ -10,7 +10,7 @@ from scipy import linalg as LA
 from scipy import optimize
 import numpy as np
 from simulation_parameters import simulation_parameters
-p = simulation_parameters()
+
 from ions import Chain
 from ion_trap import IonTrap
 import matplotlib.pylab as plt
@@ -19,43 +19,58 @@ sns.set_context('poster')
 
 #%matplotlib inline 
 
-class Parameters:
-        def __init__(self):
-                self.mass = 6.64e-26
-                self.charge = 1.6e-19
-                self.y_radial_freq = 2*np.pi * 1.9e6
-                self.x_radial_freq = 2*np.pi * 1.9e6
+class OptimizationParameters(simulation_parameters):
+
+        def __init__(self, number_of_ions, used_electrodes, pickle_file, data_size=(21,21,141), trap_center=(10, 10, 75), max_fit_order = 3, 
+                    z_expansion_order=4, X_fit_order=4, y_radial_freq = 1.9e6, Y_fit_order=4,
+                    x_radial_freq = 1.9e6):
+
+
+                super(OptimizationParameters, self).__init__()
+
+                self.used_electrodes = used_electrodes
+
+                self.pkl           = pickle_file
+                self.data_size     = data_size
+                self.trap_center   = trap_center
+                self.max_fit_order = max_fit_order
+                self.z_expansion_order = z_expansion_order
+                self.Y_fit_order   = Y_fit_order
+                self.X_fit_order   = X_fit_order
+
+
+
+                
+                self.y_radial_freq = y_radial_freq
+                self.x_radial_freq = x_radial_freq
                 self.y_delta_coeff = 1.e6*self.charge/(2*self.y_radial_freq*self.mass) #conversion to frequency and to turn y2 derivative in SI units
                 self.x_delta_coeff = 1.e6*self.charge/(2*self.x_radial_freq*self.mass) #conversion to frequency and to turn y2 derivative in SI units
-                self.omegax = 2.0e6
-                self.omegay = 2.0e6
-                self.init_omegaz = 100.e3
-                self.N = 15
-                self.chain = Chain(N, 2)
-                self.dummy_trap = IonTrap( omegax , omegaz)
-self.dummy_trap.load(chain)
-self.init_zpositions =   np.array( chain.get_positions() )
+
+                self.init_omegaz   = 100.e3
+                self.N             = number_of_ions
+                self.chain         = Chain(N, 2)
+                self.dummy_trap    = IonTrap( omegax , omegaz, 'generic')
+                self.dummy_trap.load(chain)
+                self.init_zpositions =   np.array( chain.get_positions() )
 
 
 class Spectrum:
 
-        def __init__(self, electrode_voltages, used_electrodes, pickle_file, data_size=(21,21,141), trap_center=(10, 10, 75), max_fit_order=3, z_expansion_order=4, Y_fit_order=4, X_fit_order=4):
+        def __init__(self, optimization_parameters, electrode_voltages):
                 #used_electrodes and electrode_voltages should be in the same order.
 
-
-                self.max_fit_order = max_fit_order
-                self.z_expansion_order = z_expansion_order
-                self.electrode_voltages = electrode_voltages
-                self.used_electrodes = used_electrodes
-                self.trap_center = trap_center
-
+                self.params             =  optimization_parameters
                 
-                self.pkl = pickle_file
-                #print self.trap_center
-                self.X = self.pkl.X - self.pkl.X[self.trap_center[0]]
-                self.Y = self.pkl.Y - self.pkl.Y[self.trap_center[1]]
-                self.Z = self.pkl.Z - self.pkl.Z[self.trap_center[2]]
-                self.data_size = data_size
+                
+                self.electrode_voltages = electrode_voltages
+                
+               
+
+
+                self.X = self.params.pkl.X - self.params.pkl.X[self.params.trap_center[0]]
+                self.Y = self.params.pkl.Y - self.params.pkl.Y[self.params.trap_center[1]]
+                self.Z = self.params.pkl.Z - self.params.pkl.Z[self.params.trap_center[2]]
+                
                 
                 self.pot = self.get_potential()
                 self.V_along_Z_axis = self.get_V_along_Z_axis()
@@ -63,9 +78,13 @@ class Spectrum:
                 self.V_on_X_axis_along_Z_axis = self.get_V_on_X_axis_along_Z_axis()
                 self.Y_1st_deriv, self.Y_2nd_deriv = self.get_Y_1st_and_2nd_deriv_fits_along_Z()
                 self.X_1st_deriv, self.X_2nd_deriv = self.get_X_1st_and_2nd_deriv_fits_along_Z()
-
                 self.fz_along_Z               = self.get_fz_along_Z() 
-                self.params   =  Parameters()
+
+
+
+                self.set_ions_positions()
+                #if there was a solution to minimum potential, then:
+                self.get_spectrum()
 
         def get_potential(self):
                 """ Return potential in 3 dimensions 
@@ -76,29 +95,29 @@ class Spectrum:
                 #change much).
                 s = 0
                 arr = 0
-                for i in self.used_electrodes:
-                    arr +=  self.electrode_voltages[s]*( self.pkl['EL_DC_{}'.format(i)] -  self.pkl['EL_DC_{}'.format(i)][self.trap_center] ) 
+                for i in self.params.used_electrodes:
+                    arr +=  self.electrode_voltages[s]*( self.params.pkl['EL_DC_{}'.format(i)] -  self.params.pkl['EL_DC_{}'.format(i)][self.params.trap_center] ) 
                     s += 1
                 return arr 
                 
         def get_V_along_Z_axis(self):
                 """ Return an array of potentials along the Z axis with the given electrode voltages
                 """
-                return np.array( [self.pot[self.trap_center[0:2]+(z,)] for z in range(self.data_size[2])] )
+                return np.array( [self.pot[self.params.trap_center[0:2]+(z,)] for z in range(self.params.data_size[2])] )
 
 
         def get_V_on_Y_axis_along_Z_axis(self):
                 """ Return a list of arrays of potentials on Y axis along the Z asis (one array
                 for each Z position) with the given electrode voltages
                 """
-                arr = [ np.array( [self.pot[self.trap_center[0],y, z] for y in range(self.data_size[1])] ) for z in range(self.data_size[2]) ]
+                arr = [ np.array( [self.pot[self.params.trap_center[0],y, z] for y in range(self.params.data_size[1])] ) for z in range(self.params.data_size[2]) ]
                 return arr
 
         def get_V_on_X_axis_along_Z_axis(self):
                 """ Return a list of arrays of potentials on X axis along the Z asis (one array
                 for each Z position) with the given electrode voltages
                 """
-                return [ np.array( [ self.pot[x, self.trap_center[1], z] for x in range(self.data_size[0])] ) for z in range(self.data_size[2]) ]
+                return [ np.array( [ self.pot[x, self.params.trap_center[1], z] for x in range(self.params.data_size[0])] ) for z in range(self.params.data_size[2]) ]
 
 
 
@@ -114,11 +133,11 @@ class Spectrum:
                 for z in range(len(self.Z)):
                         fit_polynomial = polyfit( self.Y, self.V_on_Y_axis_along_Z_axis[z] , Y_fit_order)
                         
-                        Y_1st_deriv.append( polyder(poly1d(fit_polynomial), 1)( self.Y[self.trap_center[1]] ) ) 
-                        Y_2nd_deriv.append( polyder(poly1d(fit_polynomial), 2)( self.Y[self.trap_center[1]] ) ) 
+                        Y_1st_deriv.append( polyder(poly1d(fit_polynomial), 1)( self.Y[self.params.trap_center[1]] ) ) 
+                        Y_2nd_deriv.append( polyder(poly1d(fit_polynomial), 2)( self.Y[self.params.trap_center[1]] ) ) 
 
-                fit_Y_1st_deriv = poly1d( polyfit(  self.Z, Y_1st_deriv, self.z_expansion_order ) )
-                fit_Y_2nd_deriv = poly1d( polyfit(  self.Z, Y_2nd_deriv, self.z_expansion_order ) )
+                fit_Y_1st_deriv = poly1d( polyfit(  self.Z, Y_1st_deriv, self.params.z_expansion_order ) )
+                fit_Y_2nd_deriv = poly1d( polyfit(  self.Z, Y_2nd_deriv, self.params.z_expansion_order ) )
 
                 return fit_Y_1st_deriv, fit_Y_2nd_deriv
 
@@ -135,11 +154,11 @@ class Spectrum:
                 for z in range(len(self.Z)):
                         fit_polynomial = polyfit( self.X, self.V_on_X_axis_along_Z_axis[z] , X_fit_order)
                         
-                        X_1st_deriv.append( polyder(poly1d(fit_polynomial), 1)( self.X[self.trap_center[1]] ) ) 
-                        X_2nd_deriv.append( polyder(poly1d(fit_polynomial), 2)( self.X[self.trap_center[1]] ) ) 
+                        X_1st_deriv.append( polyder(poly1d(fit_polynomial), 1)( self.X[self.params.trap_center[1]] ) ) 
+                        X_2nd_deriv.append( polyder(poly1d(fit_polynomial), 2)( self.X[self.params.trap_center[1]] ) ) 
 
-                fit_X_1st_deriv = poly1d( polyfit(  self.Z, X_1st_deriv, self.z_expansion_order ) )
-                fit_X_2nd_deriv = poly1d( polyfit(  self.Z, X_2nd_deriv, self.z_expansion_order ) )
+                fit_X_1st_deriv = poly1d( polyfit(  self.Z, X_1st_deriv, self.params.z_expansion_order ) )
+                fit_X_2nd_deriv = poly1d( polyfit(  self.Z, X_2nd_deriv, self.params.z_expansion_order ) )
 
                 return fit_X_1st_deriv, fit_X_2nd_deriv
 
@@ -150,7 +169,7 @@ class Spectrum:
 
                 """
 
-                return poly1d(polyfit( self.Z, self.V_along_Z_axis, self.z_expansion_order ))
+                return poly1d(polyfit( self.Z, self.V_along_Z_axis, self.params.z_expansion_order ))
 
 
         def get_Z_derivative(self, n):
@@ -165,12 +184,13 @@ class Spectrum:
         def does_trap(self):
                 """Check to see if the z dependence of potential allows trapping
                 """
-                self.fz_along_Z
+                pass
 
 
-        def get_equilibrium_positions(self):
-                if does_trap():
-                        pass
+
+        def get_equilibrium_positions(self, initial_positions_guess=[]):
+                
+                self.params.dummy_trap.get_positions(number_of_ions, potential, initial_positions_guess)
 
         
 
@@ -193,9 +213,39 @@ class Spectrum:
                         return omega_x_correction
 
 
-        def get_spectrum(self):
+        def get_spectrum(self, laser_orientation='Y'):
 
-                pass
+                
+                
+
+                couplings             = self.params.chain.get_couplings()
+
+                #Having a 729 laser with general angle could be added later:
+                couplings_with_radial_correction = couplings
+                if laser_orientation   == 'Y':
+                    couplings_with_radial_correction  +=  self.get_radial_correction('Y')(self.ions_positions)
+                elif laser_orientation == 'X':
+                    couplings_with_radial_correction  +=  self.get_radial_correction('X')(self.ion_positions)
+
+
+
+                normal_modes_from_Vz  = np.sort(abs(LA.eig(couplings)[0]))[::-1]  #This is the normal modes due to positioning of ions
+                normal_modes_with_radial_correction = np.sort(abs(LA.eig(couplings_with_radial_correction)[0]))[::-1]  #This is the normal modes due to a generic potential
+
+                return normal_modes_from_Vz, normal_modes_with_radial_correction
+
+
+        def set_ions_positions(self):
+
+                self.params.dummy_trap.set_potential(fz_along_Z) #Set trap potential
+                try:
+                    self.params.dummy_trap.load( self.params.chain ) #load ions with this potential
+                except ValueError, e:
+                    print("Trapping was not possible with the set potential.\n", e)
+                    exit
+
+                self.ions_positions            = self.params.chain.get_positions()
+
 
 '''
 #harmonic potential couplings:
@@ -246,9 +296,13 @@ class inspector:
 
 
 
-class optimize:
-        def __init__(self, init_voltages):
-                self.init_guess = init_voltages
+class Optimizer:
+        def __init__(self, init_voltages, number_of_ions, y_radial_freq = 1.9e6,
+                                      x_radial_freq = 1.9e6):
+
+                self.init_voltages_guess   = init_voltages
+                optimization_parameters    = OptimizationParameters(number_of_ions, y_radial_freq,
+                                                                    x_radial_freq)
 
 
 
