@@ -1,34 +1,56 @@
 from __future__ import division, absolute_import, print_function, unicode_literals
 import numpy as np
+import pickle
 
-class simulation_parameters(object):
-    
-    def __init__(self):
-    
-        
-        self.f_drve = 30.0 * 10**6#Hz
-        
-        #simulation parameters
-        self.damping = 0 #optional velocity damping, useful for finding equlibrium positions
-        self.simulation_duration = 0.002 #seconds
-        self.timestep = (1 / self.f_drve) /100#seconds
-        #ion parameters
-        self.mass = 40 * 1.6605402e-27 #40 amu in kg
-        
-        self.charge        = 1.6e-19
-        self.coulomb_coeff = 2.30707955552e-28 # k =  U.e**2 / (4.0 * U.pi * U.eps0) 
 
-        self.hbar = 1.05457266913e-34
-        self.transition_gamma = (1 / (7.1 * 10**-9)) #Gamma = 1 / Tau
-        #laser
-        self.saturation = 3.0
-        self.laser_detuning = -.5 * self.transition_gamma
-        self.laser_direction = np.array([1., 1., 1.]); self.laser_direction = self.laser_direction / np.sqrt(np.sum(self.laser_direction))#normalized
-        self.transition_k_mag =  2 * np.pi / (396.847 * 10**-9) 
-        self.laser_center = np.array([0.0, 0.0, 0.0])
-        self.laser_waist = 1.#meters
-        self.pulsed_laser = False
-    
-    @property
-    def total_steps(self):
-        return int(self.simulation_duration / self.timestep)
+class SimulationParameters(object):
+
+        def __init__(self):
+        
+            
+                #ion parameters
+                self.mass = 40 * 1.6605402e-27 #40 amu in kg
+                
+                self.charge        = 1.6e-19
+                self.e             = 1.6e-19
+                
+                self.coulomb_coeff = 2.30707955552e-28 # k =  U.e**2 / (4.0 * U.pi * U.eps0) 
+
+                self.hbar = 1.05457266913e-34
+                
+
+class PotentialData(object):
+
+
+        def __init__(self):
+
+                file_path          = '/home/trxw/Documents/dfr/codes/Fitting/BEMSolver_cfiles/NewCfiles/1microns_Center_-16_107_1270/data.pkl'
+                self.pkl           = pickle.load(open(file_path, 'r'))
+                self.data_size     = (31,31,331)
+                self.trap_center   = (15, 15, 165)
+                self.position_units = 1.e-3 #millimeter
+
+                self.X = (self.pkl.X - self.pkl.X[self.trap_center[0]])*self.position_units
+                self.Y = (self.pkl.Y - self.pkl.Y[self.trap_center[1]])*self.position_units
+                self.Z = (self.pkl.Z - self.pkl.Z[self.trap_center[2]])*self.position_units
+                
+                
+
+            
+
+class OptimizationParameters(SimulationParameters, PotentialData):
+
+        def __init__(self, number_of_ions = 10): #y_radial_freq_range=linspace(1.8e6, 2.e6, 10), x_radial_freq_range=linspace(1.8e6, 2.e6, 10)):
+
+
+                SimulationParameters.__init__(self)
+                PotentialData.__init__(self)
+
+                #Correct the following lines:                
+                
+                
+                self.number_of_ions= number_of_ions
+
+                #self.axial_freq    = 2*np.pi* 200.e3 #This value will be used in a Potential instance if potential_config is set to 'harmonic'
+
+                

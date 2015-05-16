@@ -40,18 +40,13 @@ class equilibrium_positions(object):
                 #and that would be equivalent to mass * omegaz**2, 
                 #and in this case, position_scale_factor will reduce to that of DJames 1997.
                 #In general case, that coeff may not be zero, and the following will give the right scaling factor:
-                print("nonzero_index is: ", nonzero_index)
-                print("energy_deriv_coeffs_inverted: ", energy_deriv_coeffs_inverted)
                 n = nonzero_index + 1
                 position_scale_factor  = ( p.coulomb_coeff / energy_deriv_coeffs_inverted[nonzero_index] )**(1./(n+1)) 
-                print("position_scale_factor: ", position_scale_factor)
-                print("Energy deriv inverted nonzero_index element: ", energy_deriv_coeffs_inverted[nonzero_index])
-                energy_deriv_along_Z_rescaled  = poly1d(  [ (position_scale_factor**i) * energy_deriv_coeffs_inverted[i]/( (position_scale_factor**nonzero_index) * energy_deriv_coeffs_inverted[nonzero_index]) \
-                                                             for i in range(len(energy_deriv_coeffs_inverted)) ][::-1] )
+                
+                energy_deriv_along_Z_rescaled  = [ (position_scale_factor**i) * potential.energy_deriv_along_Z[i]/energy_deriv_coeffs_inverted[nonzero_index] \
+                                                    for i in range(len(potential.energy_deriv_along_Z)) ]
 
-                print("Potential energy: ", potential.energy_along_Z)
-                print("Potential energy deriv: ", potential.energy_deriv_along_Z)
-                print("Rescaled potential energy deriv: ", energy_deriv_along_Z_rescaled)
+                print("Rescaled potential energy: ", energy_deriv_along_Z_rescaled)
                 
                 if nonzero_index == 1:
                         ax_freq  = polyder(potential.energy_deriv_along_Z,1)(0.)/p.mass 
@@ -75,42 +70,41 @@ class equilibrium_positions(object):
 
 
 
-                if len(initial_positions_guess) == 0:
-                            u0                     = (2.018/(N**0.559)) * np.array( np.linspace(-1,1, N) )
-                            func_harmonic          = lambda m, u: u[m] - sum( [ 1./(u[m]-u[n])**2 for n in range(m) ] ) + sum( [ 1./(u[m]-u[n])**2 for n in range(m+1, N) ] )
-                            f_harmonic             = lambda u : [func_harmonic(m,u) for m in range(N)]
-                            #position_scale_factor  = (p.coulomb_coeff / (self.axial_freq**2 * p.mass))**(1./3) 
-                            u_guess                =  nt(f_harmonic, u0)
-                        
-                else:
-                            u_guess                = initial_positions_guess/position_scale_factor
-
-                print("Guess positions: "+str(u_guess*position_scale_factor) )
+            if len(initial_positions_guess) == 0:
+                    u0                     = (2.018/(N**0.559)) * np.array( np.linspace(-1,1, N) )
+                    func_harmonic          = lambda m, u: u[m] - sum( [ 1./(u[m]-u[n])**2 for n in range(m) ] ) + sum( [ 1./(u[m]-u[n])**2 for n in range(m+1, N) ] )
+                    f_harmonic             = lambda u : [func_harmonic(m,u) for m in range(N)]
+                    #position_scale_factor  = (p.coulomb_coeff / (self.axial_freq**2 * p.mass))**(1./3) 
+                    u_guess                =  nt(f_harmonic, u0)
                 
-                
-                #Using rescaled ion positions in a harmonic potential obtained from coefficient of z^2 as initial guess for potential
-                #minimization, find ion positions in the case of generic potential
-                func          = lambda m, u: energy_deriv_along_Z_rescaled(u[m]) - sum( [ 1./(u[m]-u[n])**2 for n in range(m) ] ) + sum( [ 1./(u[m]-u[n])**2 for n in range(m+1, N) ] )
-                f             = lambda u : [func(m,u) for m in range(N)]
+            else:
+                    u_guess                = initial_positions_guess/position_scale_factor
 
-                #import IPython as ip
-                #ip.embed()
+            print("Guess positions: "+str(u_guess*position_scale_factor) )
+            
+            
+            #Using rescaled ion positions in a harmonic potential obtained from coefficient of z^2 as initial guess for potential
+            #minimization, find ion positions in the case of generic potential
+            func          = lambda m, u: energy_deriv_along_Z_rescaled(u[m]) - sum( [ 1./(u[m]-u[n])**2 for n in range(m) ] ) + sum( [ 1./(u[m]-u[n])**2 for n in range(m+1, N) ] )
+            f             = lambda u : [func(m,u) for m in range(N)]
 
-               
+            #import IPython as ip
+            #ip.embed()
 
-                positions_arr =  nt(f, u_guess) * position_scale_factor
+           
 
-                print("Positions: ", positions_arr)
+            positions_arr =  nt(f, u_guess) * position_scale_factor
+       
 
         elif potential.config == 'harmonic':
-                omegaz  = potential.axial_freq #Assuming it already contains 2*np.pi when Potential instance was created.
+            omegaz  = potential.axial_freq #Assuming it already contains 2*np.pi when Potential instance was created.
 
-                #Look at DJ 1997 paper
-                u_guess = (2.018/(N**0.559)) * np.array( np.linspace(-1,1, N) )
-                func    = lambda m, u: u[m] - sum( [ 1./(u[m]-u[n])**2 for n in range(m) ] ) + sum( [ 1./(u[m]-u[n])**2 for n in range(m+1, N) ] )
-                f       = lambda u : [func(m,u) for m in range(N)]
-                position_scale_factor  = (p.coulomb_coeff / (omegaz**2 * p.mass))**(1./3) 
-                positions_arr =  nt(f, u_guess) * position_scale_factor
+            #Look at DJ 1997 paper
+            u_guess = (2.018/(N**0.559)) * np.array( np.linspace(-1,1, N) )
+            func    = lambda m, u: u[m] - sum( [ 1./(u[m]-u[n])**2 for n in range(m) ] ) + sum( [ 1./(u[m]-u[n])**2 for n in range(m+1, N) ] )
+            f       = lambda u : [func(m,u) for m in range(N)]
+            position_scale_factor  = (p.coulomb_coeff / (omegaz**2 * p.mass))**(1./3) 
+            positions_arr =  nt(f, u_guess) * position_scale_factor
 
         
 
@@ -150,6 +144,8 @@ Extension on Daniel James 'Quantum dynamics of cold trapped ions with applicatio
                     }
 
 
+
 '''
+
 
 

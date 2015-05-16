@@ -279,6 +279,7 @@ class Chain:
                 raise Exception("Number of given ions don't match with number of elements in zpositions array.")
 
 
+
     def get_positions(self):
             
         return [ion.get_zposition() for ion in self.Ions]
