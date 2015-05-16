@@ -7,10 +7,11 @@ from numpy import absolute, real, linspace, arange, exp, pi
 from scipy.misc import factorial  
 from qutip import *
 from operator_zoo import OperatorZoo
+import scipy.linalg as LA
 
 class Dynamics(OperatorZoo):
         
-    def __init__(self, chain, lasers=[], pulses=[], time_precision=2.e-6):
+    def __init__(self, chain, mode='quantum', lasers=[], pulses=[], time_precision=2.e-6):
  
         self.eta  =  0.05
         self.chain = chain
@@ -26,12 +27,15 @@ class Dynamics(OperatorZoo):
 
         self.expectations = [[]]
 
-        if not self.chain.motional_states_are_set:
-            raise Exception("Motional states are not set.")
-        self.chain.initialize_chain_electronic_states(lasers=lasers, pulses=pulses)
+        if mode == 'quantum':
+            if not self.chain.motional_states_are_set:
+                raise Exception("Motional states are not set.")
+            self.chain.initialize_chain_electronic_states(lasers=lasers, pulses=pulses)
 
         self.chain_motion_hamiltonian = self.get_chain_motion_hamiltonian()
-        self.construct_free_hamiltonian('spin')
+
+        frame = 'local_modes'
+        self.construct_free_hamiltonian(frame)
         #self.hamiltonian         =  self.get_chain_motion_hamiltonian() 
         
         
@@ -139,7 +143,8 @@ class Dynamics(OperatorZoo):
     def get_1st_order_hamiltonian(self, laser, frame,regime='RWA'):
         """ Generate the first carrier(sideband) Hamiltonian in the Lamb-Dicke regime up to 
         1st order in eta**laser.sideband_num .
-
+        Currently frame = normal_modes works for sideband_num = +1,-1 only (for detunings sideband_num must be 
+            considered.)
         """
 
         if regime == 'RWA':
@@ -159,12 +164,19 @@ class Dynamics(OperatorZoo):
                 
                 H   =  laser.intensity * ( op + op.dag() )  \
                         - self.chain.couplings[ laser.ion_num -1 ][ laser.ion_num -1 ] * sum( [ self.a[i].dag() * self.a[i] for i in range(self.chain.num_of_ions)  ] )
+
+            elif frame == 'normal_modes_new':
+                
+                #Add effect of laser detuning from local carrier or sideband frequency by rotating normal modes frame:
+                ref_freq  = laser.sideband_num * self.chain.couplings[ laser.ion_num -1 ][ laser.ion_num -1 ] + laser.detuning
+                H   =  laser.intensity * ( op + op.dag() )  \
+                        - sum( [   ( ref_freq - self.chain.eigenvalues[i]  ) * self.D[i].dag() * self.D[i] for i in range(self.chain.num_of_ions)  ] )               
             
         
             #Both rotating wave frames used below agree with each other for 1 laser (spin):                
             elif frame == 'normal_modes':
                 #Add effect of laser detuning from local carrier or sideband frequency by rotating normal modes frame:
-                ref_freq  = self.chain.couplings[ laser.ion_num -1 ][ laser.ion_num -1 ] + laser.detuning
+                ref_freq  = laser.sideband_num * self.chain.couplings[ laser.ion_num -1 ][ laser.ion_num -1 ] + laser.detuning
                 H   =  laser.intensity * ( op + op.dag() )  \
                         - sum( [   ( ref_freq - self.chain.eigenvalues[i]  ) * self.D[i].dag() * self.D[i] for i in range(self.chain.num_of_ions)  ] )               
 
@@ -240,6 +252,29 @@ class Dynamics(OperatorZoo):
             yield self.time_evol_op
             self.time_evol_op        =   exponential * self.time_evol_op
             
+
+    def get_ramsey_contrast( self, ion_num, time_interval = [0., 700.e-6], time_precision=1.e-6):
+        """Return an array of amplitudes of ion ion_num at each time in time_interval   
+
+        """
+        
+        def gamma(j, t, chain):
+            eigenvectorsT = LA.eig(chain.get_couplings())[1]
+            eigenfreqs   = LA.eig(chain.get_couplings())[0]
+
+            s = 0
+            for i in range(chain.num_of_ions):
+                s += eigenvectorsT[j][i] * eigenvectorsT[j][i] * np.exp(1.j* eigenfreqs[i] * t)
+            return s
+        
+        #time_interval = [0., 700.e-6]
+        #times = np.arange(0., 700.e-6, time_precision)
+
+        times = np.arange(time_interval[0], time_interval[1], time_precision)
+        ion = ion_num
+
+        ex = abs(np.conjugate(np.array([gamma(ion, t, self.chain) for t in times])) * np.array([gamma(ion, t, self.chain) for t in times]))
+        return ex
 
 
     #def add_pulse( self, ion_num, pulse_duration, sideband_num = 1):

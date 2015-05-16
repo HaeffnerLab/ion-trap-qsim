@@ -1,10 +1,129 @@
 import numpy as np
+from numpy import *
+from scipy.optimize import newton_krylov as nt
+import simulation_parameters
+p = simulation_parameters.SimulationParameters()
+
+class equilibrium_positions(object):
+
+    
+    @classmethod
+    def get_positions(cls, number_of_ions, potential, initial_positions_guess=[]):
+        
+        '''If potenial.config is 'harmonic' it takes the trap frequency in Rad/Sec and returns the axial positions of an ion chain for that frequency
+           If potenial.config is 'generic' it takes potential function on the trap axis and returns positions (assuming 
+            a minimum exists for the given number of ions.
+
+            initial_positions_guess is an initial guess for positions of ions in SI units. 
+        '''
+
+        N = number_of_ions
+
+        if potential.config == 'generic':
+
+
+
+                energy_coeffs       = array( potential.energy_along_Z )[::-1]
+                potential.energy_deriv_along_Z           =  polyder( potential.energy_along_Z, 1 )
+                energy_deriv_coeffs_inverted = array( potential.energy_deriv_along_Z )[::-1]
+
+                
+                #Find the first nonzero coefficient in Z dependent energy function 
+                #of second or higher order in Z, 
+                try: 
+                        nonzero_index = min([i for i in range(1, len(energy_deriv_coeffs_inverted)) if energy_deriv_coeffs_inverted[i] != 0])
+                except ValueError, e:
+                        raise Exception(e, "\nNontrapping potential energy.")
+
+                #and use that coeff to find appropriate position_scale_factor.
+                #For example, if second element of energy_deriv_coeffs_inverted is nonzero, then nonzero_index = 1, 
+                #and that would be equivalent to mass * omegaz**2, 
+                #and in this case, position_scale_factor will reduce to that of DJames 1997.
+                #In general case, that coeff may not be zero, and the following will give the right scaling factor:
+                print("nonzero_index is: ", nonzero_index)
+                print("energy_deriv_coeffs_inverted: ", energy_deriv_coeffs_inverted)
+                n = nonzero_index + 1
+                position_scale_factor  = ( p.coulomb_coeff / energy_deriv_coeffs_inverted[nonzero_index] )**(1./(n+1)) 
+                print("position_scale_factor: ", position_scale_factor)
+                print("Energy deriv inverted nonzero_index element: ", energy_deriv_coeffs_inverted[nonzero_index])
+                energy_deriv_along_Z_rescaled  = poly1d(  [ (position_scale_factor**i) * energy_deriv_coeffs_inverted[i]/( (position_scale_factor**nonzero_index) * energy_deriv_coeffs_inverted[nonzero_index]) \
+                                                             for i in range(len(energy_deriv_coeffs_inverted)) ][::-1] )
+
+                print("Potential energy: ", potential.energy_along_Z)
+                print("Potential energy deriv: ", potential.energy_deriv_along_Z)
+                print("Rescaled potential energy deriv: ", energy_deriv_along_Z_rescaled)
+                
+                if nonzero_index == 1:
+                        ax_freq  = polyder(potential.energy_deriv_along_Z,1)(0.)/p.mass 
+                        if ax_freq>0:
+                                potential.axial_freq  = sqrt( ax_freq )
+                                print("Axial freq from deriv: ",  potential.axial_freq)
+                        else:
+                                raise Exception("\nNontrapping potential energy.")
+
+                else:
+                        #If coefficient of Z^2 in potential energy is zero, estimate axial freq at 10 microns from Z center
+                        ax_freq  = polyder(potential.energy_deriv_along_Z,1)(5.e-6)/p.mass
+                        
+                        if ax_freq>0:
+                                potential.axial_freq  = sqrt( ax_freq )
+                                print("Axial freq from deriv: ",  potential.axial_freq)
+                        else:
+                                raise Exception("\nNontrapping potential energy.")
+
+
+
+
+
+                if len(initial_positions_guess) == 0:
+                            u0                     = (2.018/(N**0.559)) * np.array( np.linspace(-1,1, N) )
+                            func_harmonic          = lambda m, u: u[m] - sum( [ 1./(u[m]-u[n])**2 for n in range(m) ] ) + sum( [ 1./(u[m]-u[n])**2 for n in range(m+1, N) ] )
+                            f_harmonic             = lambda u : [func_harmonic(m,u) for m in range(N)]
+                            #position_scale_factor  = (p.coulomb_coeff / (self.axial_freq**2 * p.mass))**(1./3) 
+                            u_guess                =  nt(f_harmonic, u0)
+                        
+                else:
+                            u_guess                = initial_positions_guess/position_scale_factor
+
+                print("Guess positions: "+str(u_guess*position_scale_factor) )
+                
+                
+                #Using rescaled ion positions in a harmonic potential obtained from coefficient of z^2 as initial guess for potential
+                #minimization, find ion positions in the case of generic potential
+                func          = lambda m, u: energy_deriv_along_Z_rescaled(u[m]) - sum( [ 1./(u[m]-u[n])**2 for n in range(m) ] ) + sum( [ 1./(u[m]-u[n])**2 for n in range(m+1, N) ] )
+                f             = lambda u : [func(m,u) for m in range(N)]
+
+                #import IPython as ip
+                #ip.embed()
+
+               
+
+                positions_arr =  nt(f, u_guess) * position_scale_factor
+
+                print("Positions: ", positions_arr)
+
+        elif potential.config == 'harmonic':
+                omegaz  = potential.axial_freq #Assuming it already contains 2*np.pi when Potential instance was created.
+
+                #Look at DJ 1997 paper
+                u_guess = (2.018/(N**0.559)) * np.array( np.linspace(-1,1, N) )
+                func    = lambda m, u: u[m] - sum( [ 1./(u[m]-u[n])**2 for n in range(m) ] ) + sum( [ 1./(u[m]-u[n])**2 for n in range(m+1, N) ] )
+                f       = lambda u : [func(m,u) for m in range(N)]
+                position_scale_factor  = (p.coulomb_coeff / (omegaz**2 * p.mass))**(1./3) 
+                positions_arr =  nt(f, u_guess) * position_scale_factor
+
+        
+
+
+
+        return positions_arr
+
+
 '''
 known relative positions of the ions within a linear ion chain
 
 Extension on Daniel James 'Quantum dynamics of cold trapped ions with application to quantum computation'. Table 1.
-'''
-class equilibrium_positions(object):
+
 
     position_dict = {
                     1:                                         [0],
@@ -29,20 +148,8 @@ class equilibrium_positions(object):
                     20: [-4.32811, -3.66892, -3.12761, -2.64451, -2.19679, -1.77255, -1.36446, -0.967463, -0.577733, -0.192132, 0.192129, 0.577731, 0.967461, 1.36446, 1.77255, 2.19679, 2.64451, 3.12761, 3.66892, 4.32811],
                     25: [-4.87094, -4.24383, -3.73163, -3.27695, -2.85793, -2.46328, -2.08616, -1.72197, -1.36739, -1.01986, -0.677284, -0.337872, 0, 0.337872, 0.677284, 1.01986, 1.36739, 1.72197, 2.08616, 2.46328, 2.85793, 3.27695, 3.73163, 4.24383, 4.87094],
                     }
-    
-    @classmethod
-    def get_positions(cls, number_ions, trap_frequency, p):
-        
-        '''
-        takes the trap frequency in Rad/Sec and returns the axial positions of an ion chain for that frequency
-        '''
 
-        w = trap_frequency
-        length_scale = (p.coulomb_coeff / (w**2 * p.mass))**(1./3)
-        lengths = length_scale * np.array(cls.position_dict[number_ions])
-        return lengths
 
-if __name__ == '__main__':
-    import simulation_parameters
-    p = simulation_parameters.simulation_parameters()
-    print equilibrium_positions.get_positions(2, 100e3, p)
+'''
+
+
