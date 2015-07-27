@@ -2,6 +2,8 @@ import numpy as np
 from numpy import *
 from scipy.optimize import newton_krylov as nt
 import simulation_parameters
+import math
+
 p = simulation_parameters.SimulationParameters()
 
 class equilibrium_positions(object):
@@ -31,7 +33,9 @@ class equilibrium_positions(object):
                 #Find the first nonzero coefficient in Z dependent energy function 
                 #of second or higher order in Z, 
                 try: 
-                        nonzero_index = min([i for i in range(1, len(energy_deriv_coeffs_inverted)) if energy_deriv_coeffs_inverted[i] != 0])
+                        nonzero_index = min([i for i in range(1, len(energy_deriv_coeffs_inverted)) if abs(energy_deriv_coeffs_inverted[i]) > 0])
+
+
                 except ValueError, e:
                         raise Exception(e, "\nNontrapping potential energy.")
 
@@ -40,38 +44,48 @@ class equilibrium_positions(object):
                 #and that would be equivalent to mass * omegaz**2, 
                 #and in this case, position_scale_factor will reduce to that of DJames 1997.
                 #In general case, that coeff may not be zero, and the following will give the right scaling factor:
-                print("nonzero_index is: ", nonzero_index)
-                print("energy_deriv_coeffs_inverted: ", energy_deriv_coeffs_inverted)
                 n = nonzero_index + 1
-                position_scale_factor  = ( p.coulomb_coeff / energy_deriv_coeffs_inverted[nonzero_index] )**(1./(n+1)) 
-                print("position_scale_factor: ", position_scale_factor)
-                print("Energy deriv inverted nonzero_index element: ", energy_deriv_coeffs_inverted[nonzero_index])
+                position_scale_factor  = ( p.coulomb_coeff / abs(energy_deriv_coeffs_inverted[nonzero_index]) )**(1./(n+1)) 
+                #print("position_scale_factor " + str(position_scale_factor))
+                #print energy_deriv_coeffs_inverted[nonzero_index]
+                
                 energy_deriv_along_Z_rescaled  = poly1d(  [ (position_scale_factor**i) * energy_deriv_coeffs_inverted[i]/( (position_scale_factor**nonzero_index) * energy_deriv_coeffs_inverted[nonzero_index]) \
                                                              for i in range(len(energy_deriv_coeffs_inverted)) ][::-1] )
-
-                print("Potential energy: ", potential.energy_along_Z)
-                print("Potential energy deriv: ", potential.energy_deriv_along_Z)
-                print("Rescaled potential energy deriv: ", energy_deriv_along_Z_rescaled)
                 
+
+                if p.do_print:
+                    print("nonzero_index is: ", nonzero_index)
+                    print("energy_deriv_coeffs_inverted: ", energy_deriv_coeffs_inverted)
+                    
+                    print("Potential energy: ", potential.energy_along_Z)
+                    print("Potential energy deriv: ", potential.energy_deriv_along_Z)
+                    print("Rescaled potential energy deriv: ", energy_deriv_along_Z_rescaled)
+                    print("Guess positions: "+str(u_guess*position_scale_factor) )
+                    print("Positions: ", positions_arr)
+                    
+
+                '''
                 if nonzero_index == 1:
-                        ax_freq  = polyder(potential.energy_deriv_along_Z,1)(0.)/p.mass 
-                        if ax_freq>0:
-                                potential.axial_freq  = sqrt( ax_freq )
-                                print("Axial freq from deriv: ",  potential.axial_freq)
+                        ax_freq_sq  = polyder(potential.energy_deriv_along_Z,1)(0.)/p.mass 
+                        if ax_freq_sq>0:
+                                potential.axial_freq  = sqrt( ax_freq_sq )
+                                if p.do_print:
+                                    print("Axial freq from deriv: ",  potential.axial_freq)
                         else:
                                 raise Exception("\nNontrapping potential energy.")
 
                 else:
                         #If coefficient of Z^2 in potential energy is zero, estimate axial freq at 10 microns from Z center
-                        ax_freq  = polyder(potential.energy_deriv_along_Z,1)(5.e-6)/p.mass
+                        ax_freq_sq  = polyder(potential.energy_deriv_along_Z,1)(5.e-6)/p.mass
                         
-                        if ax_freq>0:
-                                potential.axial_freq  = sqrt( ax_freq )
-                                print("Axial freq from deriv: ",  potential.axial_freq)
+                        if ax_freq_sq>0:
+                                potential.axial_freq  = sqrt( ax_freq_sq )
+                                if p.do_print:
+                                    print("Axial freq from deriv: ",  potential.axial_freq )
                         else:
                                 raise Exception("\nNontrapping potential energy.")
 
-
+                '''
 
 
 
@@ -85,9 +99,10 @@ class equilibrium_positions(object):
                 else:
                             u_guess                = initial_positions_guess/position_scale_factor
 
-                print("Guess positions: "+str(u_guess*position_scale_factor) )
                 
-                
+                #print u_guess
+                #print energy_deriv_along_Z_rescaled
+
                 #Using rescaled ion positions in a harmonic potential obtained from coefficient of z^2 as initial guess for potential
                 #minimization, find ion positions in the case of generic potential
                 func          = lambda m, u: energy_deriv_along_Z_rescaled(u[m]) - sum( [ 1./(u[m]-u[n])**2 for n in range(m) ] ) + sum( [ 1./(u[m]-u[n])**2 for n in range(m+1, N) ] )
@@ -96,11 +111,19 @@ class equilibrium_positions(object):
                 #import IPython as ip
                 #ip.embed()
 
+                for fun in f(u_guess):
+                    if math.isnan(fun):
+                        raise Exception("Is not a Number")
+
+
+                u_arr =  nt(f, u_guess, maxiter=10) 
+
+                #if min(abs(diff(u_arr))) <= 2.018/N**0.559
+                #print("u_arr ", u_arr)
+
+                positions_arr = u_arr * position_scale_factor
+
                
-
-                positions_arr =  nt(f, u_guess) * position_scale_factor
-
-                print("Positions: ", positions_arr)
 
         elif potential.config == 'harmonic':
                 omegaz  = potential.axial_freq #Assuming it already contains 2*np.pi when Potential instance was created.

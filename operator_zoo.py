@@ -16,9 +16,9 @@ class OperatorZoo(object):
         self.a                =  [self.a_func(j) for j in range(self.chain.num_of_ions)]
 
         #Normal modes expressed in terms of local mode a's:
-        self.D_func        = lambda i: sum( [ self.chain.normal_in_local_modes[i][j] * self.a[j] for j in range(self.chain.num_of_ions) ] )
+        #self.D_func        = lambda i: sum( [ self.chain.normal_in_local_modes[i][j] * self.a[j] for j in range(self.chain.num_of_ions) ] )
          
-        self.D             = [ self.D_func(i) for i in range(self.chain.num_of_ions) ]
+        #self.D             = [ self.D_func(i) for i in range(self.chain.num_of_ions) ]
 
         
 

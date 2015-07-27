@@ -5,7 +5,7 @@ from scipy import *
 import numpy as np
 from error_handling import *
 import scipy.linalg as LA
-
+from matplotlib.pylab import *
 
 class HilbertSpace(object):
 
@@ -155,7 +155,7 @@ class Ion:
 
 class Chain:
 
-    def __init__(self, N, ion_motional_hilbert_space_dim, ion_electronic_hilbert_space_dim = 2, state_type = 'pure'):
+    def __init__(self, N, ion_motional_hilbert_space_dim=2, ion_electronic_hilbert_space_dim = 2, state_type = 'pure'):
 
         self.num_of_ions                       =  N 
         self.ion_motional_hilbert_space_dim    =  ion_motional_hilbert_space_dim
@@ -321,6 +321,26 @@ class Chain:
 
 
 
+    '''
+    def get_spectrum(self, laser_orientation='Y'):
+            
+        couplings             = self.params.chain.get_couplings()
+
+        #Having a 729 laser with general angle could be added later
+        couplings_with_radial_correction = couplings
+        if laser_orientation   == 'Y':
+            couplings_with_radial_correction  +=  self.get_radial_correction('Y')(self.ions_positions)
+        elif laser_orientation == 'X':
+            couplings_with_radial_correction  +=  self.get_radial_correction('X')(self.ions_positions)
+
+
+
+        normal_modes_from_Vz  = np.sort(abs(LA.eig(couplings)[0]))[::-1]  #This is the normal modes due to positioning of ions
+        normal_modes_with_radial_correction = np.sort(abs(LA.eig(couplings_with_radial_correction)[0]))[::-1]  #This is the normal modes due to a generic potential
+
+        return normal_modes_from_Vz, normal_modes_with_radial_correction
+        '''
+
 
     def set_normal_mode_structure(self):
         """Set the normal mode structure.
@@ -384,3 +404,8 @@ class Chain:
                     local_radial_freqs[i] -= couplings[i][j]
         return local_radial_freqs
 
+
+    def plot_positions(self):
+
+        plot( self.get_positions(), ones(self.num_of_ions), 'bo')
+        show()

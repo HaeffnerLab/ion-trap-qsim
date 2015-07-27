@@ -19,6 +19,8 @@ class SimulationParameters(object):
                 self.hbar = 1.05457266913e-34
                 
 
+                self.do_print = False
+
 class PotentialData(object):
 
 
@@ -40,7 +42,7 @@ class PotentialData(object):
 
 class OptimizationParameters(SimulationParameters, PotentialData):
 
-        def __init__(self, number_of_ions = 10): #y_radial_freq_range=linspace(1.8e6, 2.e6, 10), x_radial_freq_range=linspace(1.8e6, 2.e6, 10)):
+        def __init__(self): #y_radial_freq_range=linspace(1.8e6, 2.e6, 10), x_radial_freq_range=linspace(1.8e6, 2.e6, 10)):
 
 
                 SimulationParameters.__init__(self)
@@ -49,7 +51,7 @@ class OptimizationParameters(SimulationParameters, PotentialData):
                 #Correct the following lines:                
                 
                 
-                self.number_of_ions= number_of_ions
+                #self.number_of_ions= number_of_ions
 
                 #self.axial_freq    = 2*np.pi* 200.e3 #This value will be used in a Potential instance if potential_config is set to 'harmonic'
 

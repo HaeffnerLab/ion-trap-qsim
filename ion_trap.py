@@ -5,15 +5,17 @@ from numpy import *
 from simulation_parameters import SimulationParameters
 from equilibrium_positions import equilibrium_positions
 from simulation_parameters import OptimizationParameters
-
+from scipy import linalg as LA
+from matplotlib.pylab import *
+import math
 
 class IonTrap:
 
-        def __init__(self, freq_reference = 0.0, magnetic_field_gradient = 0.0, laser_axis='Y'):
+        def __init__(self, potential_config='generic', freq_reference = 0.0, magnetic_field_gradient = 0.0, laser_axis='Y'):
                 
                 self.p             =   SimulationParameters()
 
-                self.potential     =   Potential('generic')
+                self.potential     =   Potential(potential_config)
                 
                 self.laser_axis    =  laser_axis
                 #Frequency reference is the frequency with respect to
@@ -21,7 +23,7 @@ class IonTrap:
                 # are measured:
                 self.freq_reference  = freq_reference  
                 self.magnetic_field_gradient = magnetic_field_gradient
-
+                self.loaded = False
 
         def load(self, chain):
 
@@ -30,7 +32,9 @@ class IonTrap:
 
                 #Set the position of ions:
                 if self.potential.config == 'harmonic' or self.potential.config == 'generic':
-                        self.chain.set_zpositions( equilibrium_positions.get_positions(self.chain.num_of_ions, self.potential) )
+                    positions = equilibrium_positions.get_positions(self.chain.num_of_ions, self.potential)
+                    self.chain.set_zpositions( positions )
+                    print("positions ", positions)
                 
                 self.chain.set_carrier_frequencies(self.freq_reference, self.magnetic_field_gradient)
 
@@ -38,7 +42,7 @@ class IonTrap:
                 self.chain.set_couplings( self.potential.get_trap_radial_freq(self.laser_axis) )
 
                 #Set expansion of chain's motion local in terms of normal destruction operators and vice versa, and eigenvalues.
-                self.chain.set_normal_mode_structure()
+                #self.chain.set_normal_mode_structure()
 
 
                 self.loaded   =  True
@@ -49,16 +53,18 @@ class IonTrap:
                 self.load(self.chain)
 
 
-        def set_ions_positions(self, chain, zpositions):
+        def set_ions_positions(self, zpositions):
                 
                 self.potential.config = 'positions'
-                self.chain = chain
 
-                if len(zpositions) == self.chain.num_of_ions:
-                        self.chain.set_zpositions( zpositions )
+                if self.loaded:
+                    if len(zpositions) == self.chain.num_of_ions:
+                            self.chain.set_zpositions( zpositions )
+                            self.reload()
+                    else:
+                            raise Exception("Z position of ions must be given as a list with length equal to\n number of ions")
                 else:
-                        raise Exception("Z position of ions must be given as a list with length equal to\n number of ions")
-
+                    raise Exception("An ion chain must be loaded before setting positions.")
 
         '''
         def set_ions_positions(self):
@@ -96,6 +102,8 @@ class IonTrap:
         def set_electrode_voltages(self, electrode_voltages):
                 
                 self.potential.set_electrode_voltages(electrode_voltages)
+                if self.loaded:
+                    self.reload()
 
 
         def set_trap_radial_freq(self, radial_freq, axis):
@@ -104,13 +112,85 @@ class IonTrap:
                 """
 
                 self.potential.set_trap_radial_freq(radial_freq, axis)
+                if self.loaded:
+                    self.reload()
+
+
+        def get_spectrum(self, laser_orientation='Y'):
+
+                
+                couplings             = self.chain.get_couplings() 
+                #This is the normal modes due to positioning of ions, if radial frequency correction was zero
+                for c in couplings:
+                    for cc in c:
+                        if math.isnan(cc):
+                            print couplings
+                            raise Exception("Is not a number")
+
+                normal_modes_from_Vz  = np.sort(abs(LA.eig(couplings)[0]))[::-1]  
+
+
+                #Having a 729 laser with general angle could be added later
+                #Calculating couplings matrix with radial correction:
+                couplings_with_radial_correction = couplings - self.p.mass * (self.potential.get_trap_radial_freq(laser_orientation)**2) * identity( self.chain.num_of_ions ) 
+                radials = self.potential.get_radial_frequency(laser_orientation)(self.chain.get_positions()) 
+                for freq in radials:
+                    if math.isnan(freq):
+                        raise Exception("Is not a number.")
+                couplings_with_radial_correction   +=  self.p.mass * (radials**2) * identity(self.chain.num_of_ions)
+                normal_modes_with_radial_correction = np.sort(abs(LA.eig(couplings_with_radial_correction)[0]))[::-1]  #This is the normal modes due to a generic potential
+
+
+                return normal_modes_from_Vz, normal_modes_with_radial_correction
+                
+        '''
+        def get_couplings(self, laser_orientation='Y'):
+                
+                couplings             = self.chain.get_couplings() 
+                #This is the normal modes due to positioning of ions, if radial frequency correction was zero
+                for c in couplings:
+                    for cc in c:
+                        if math.isnan(cc):
+                            print couplings
+                            raise Exception("Is not a number")
+
+                normal_modes_from_Vz  = np.sort(abs(LA.eig(couplings)[0]))[::-1]  
+
+                #Having a 729 laser with general angle could be added later:
+                couplings_with_radial_correction = couplings - self.potential.get_trap_radial_freq(laser_orientation) * identity( self.chain.num_of_ions ) 
+
+                radials = self.potential.get_radial_frequency(laser_orientation)(self.chain.get_positions()) 
+                #print (self.potential.trap_Y_radial_freq**2. + self.potential.params.charge * self.potential.Y_2nd_deriv/self.potential.params.mass)(self.chain.get_positions())
+                
+                for freq in radials:
+                    if math.isnan(freq):
+
+                        raise Exception("Is not a number.")
+                couplings_with_radial_correction  +=  radials * identity(self.chain.num_of_ions)
+
+
+                #why couplings are wrong??!!
+
+                return couplings, couplings_with_radial_correction
+        '''             
+
+
+
+
+        def plot_spectrum(self, laser_orientation='Y'):
+                plot(self.get_spectrum(laser_orientation)[0]/(2*np.pi), 'ro')
+                plot(self.get_spectrum(laser_orientation)[1]/(2*np.pi), 'bo')
+                
+                show()
+
+
 
 
 class Potential:
 
         def __init__(self, potential_config, trap_Y_radial_freq=1.8e6, trap_X_radial_freq=1.8e6,
                      optimization_parameters=OptimizationParameters(), 
-                     max_fit_order = 3, z_expansion_order=4, X_fit_order=4, Y_fit_order=4):
+                     z_expansion_order=10, X_fit_order=4, Y_fit_order=4):
                 """ Contains information about total potential which is devided by 
                     0.5*M*omegaz**2 along the Z axis. 
                     func is a numpy.polynomial object, determining V(x_0,y_0, z), potential along the Z trap axis
@@ -121,7 +201,7 @@ class Potential:
 
 
 
-                self.max_fit_order   = max_fit_order
+                
                 self.z_expansion_order = z_expansion_order
                 self.Y_fit_order     = Y_fit_order
                 self.X_fit_order     = X_fit_order
@@ -149,7 +229,8 @@ class Potential:
                 #Have YOU not seen it through the end?                
                 
         def set_fz(self, func):
-                """ Set func which is a numpy.polynomial (poly1d) object, determining V(x_0,y_0, z), potential along the Z trap axis
+                """ Given func which is a numpy.polynomial (poly1d) object, determining V(x_0,y_0, z), potential along the Z trap axis,
+                    set func which is a numpy.polynomial (poly1d) object, determining U(x_0,y_0, z), potential energy along the Z trap axis,
                     Units of coefficients should be in S.I.
 
                 """
@@ -180,6 +261,20 @@ class Potential:
                     return self.trap_X_radial_freq 
 
 
+        def get_radial_frequency(self, laser_orientation='Y'):
+                """ Get radial axis ('X' or 'Y') and return radial frequency along that direction after correction from
+                static potential.
+
+                """
+                if laser_orientation == 'Y':
+                        omega_square = self.trap_Y_radial_freq**2. + self.params.charge * self.Y_2nd_deriv/self.params.mass 
+
+                elif laser_orientation == 'X':
+                        omega_square = self.trap_X_radial_freq**2. + self.params.charge * self.X_2nd_deriv/self.params.mass 
+                
+
+                return poly1d( polyfit( self.params.Z, sqrt( omega_square(self.params.Z) ), self.z_expansion_order  ) )
+
 
 
         def set_used_electrodes(self, used_electrodes):
@@ -203,10 +298,13 @@ class Potential:
                     self.Y_1st_deriv, self.Y_2nd_deriv = self.get_Y_1st_and_2nd_deriv_fits_along_Z()
                     self.X_1st_deriv, self.X_2nd_deriv = self.get_X_1st_and_2nd_deriv_fits_along_Z()
                     self.fz_along_Z                    = self.get_fz_along_Z() 
-                    print( 'fz', self.fz_along_Z )
+                    self.Z_1st_deriv                   = self.get_Z_derivative(1)
+                    if self.params.do_print:
+                        print( 'fz', self.fz_along_Z )
                     self.set_fz(  self.fz_along_Z )
 
                     self.electrode_voltages_are_set = True
+
 
 
         #Brought in from Spectrum
@@ -316,7 +414,7 @@ class Potential:
                 self.Laplace_eq = self.X2 + self.Y2 + self.Z2
 
 
-
+        '''
 
         def get_radial_correction(self, radial):
 
@@ -336,19 +434,9 @@ class Potential:
            
                         return omega_x_correction
 
+        '''
 
-        def get_radial_frequency(self, radial):
-                """ Get radial axis ('X' or 'Y') and return radial frequency along that direction after correction from
-                static potential.
-
-                """
-                if radial == 'Y':
-                        return self.trap_Y_radial_freq + self.get_radial_correction(radial) 
-                elif radial == 'X':
-                        return self.trap_X_radial_freq + self.get_radial_correction(radial) 
-
-
-
+        
         def update(self, update_func):
 
                 self.Vz += update_func
